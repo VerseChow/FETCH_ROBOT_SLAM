@@ -92,8 +92,7 @@ int main(int argc, char **argv)
    */
   ros::NodeHandle n;
   ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
-  ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
-  ros::Publisher map_info_pub = n.advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
+  ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 100);
   ros::Rate r(30);
   /**
    * The subscribe() call is how you tell ROS that you want to receive messages
@@ -113,23 +112,20 @@ int main(int argc, char **argv)
 // %Tag(SUBSCRIBER)%
   printf("start listening\n");
   ros::Subscriber sub = n.subscribe("/base_scan", 1000, laser_receive);
-  nav_msgs::OccupancyGrid Fetch_map;
-  Fetch_map.header.seq = count;
-  Fetch_map.header.frame_id = "/base_link";
-  Fetch_map.header.stamp = ros::Time::now();
-  Fetch_map.info.map_load_time = ros::Time::now();
-  Fetch_map.info.resolution = 0.05;//m/cell
-  Fetch_map.info.width = 1000;
-  Fetch_map.info.height = 1000;
+      nav_msgs::OccupancyGrid Fetch_map;
+      Fetch_map.header.seq = count;
+      Fetch_map.header.frame_id = "/odom";
+      Fetch_map.header.stamp = ros::Time::now();
+      Fetch_map.info.map_load_time = ros::Time::now();
+      Fetch_map.info.resolution = 0.05;//m/cell
+      Fetch_map.info.width = 500;
+      Fetch_map.info.height = 500;
+ 
 
-  Fetch_map.info.origin.position.x = 0.0;
-  Fetch_map.info.origin.position.y = 0.0;
-  Fetch_map.info.origin.position.z = 0.0;
-  Fetch_map.info.origin.orientation.w = 1.0;
-  Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 100);
-  //int data[2] = {100, 100};
-  //Fetch_map.data = &data;
-  //printf("%d\n", Fetch_map.data[0]);
+      Fetch_map.info.origin.position.x = 2.0;
+      Fetch_map.info.origin.position.y = 0.0;
+      Fetch_map.info.origin.position.z = 0.0;
+      Fetch_map.info.origin.orientation.w = 1.0;
 	
 
 
@@ -143,15 +139,19 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     // Init occupancy grid
-      Fetch_map.header.seq = count;
-      //map_info_pub.publish(Fetch_map.info);
+Fetch_map.header.seq = count;
+	for(int n=0; n<500*500; n++)
+	{
+		Fetch_map.data[n] = 100;
+	}
+
 
       map_pub.publish(Fetch_map);
 
 
   		visualization_msgs::Marker line_list;
 
-  		line_list.header.frame_id = "/base_link";
+  		line_list.header.frame_id = "/odom";
   		line_list.header.stamp = ros::Time::now();
   		line_list.ns = "points_and_lines";
   		line_list.action = visualization_msgs::Marker::ADD;
