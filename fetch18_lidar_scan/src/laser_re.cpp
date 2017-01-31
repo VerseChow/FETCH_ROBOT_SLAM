@@ -34,40 +34,27 @@
 #include "cmath"
 #include "iostream"
 #include "vector"
+#include "mapping.hpp"
 
 
-
-struct laser_re
-{
-    float angle_min;
-    float angle_max;
-    float angle_increment;
-    //float time_increment;
-    float scan_time;
-    float range_min;
-    float range_max;
-    std::vector<float> ranges;
-    std::vector<float> intensities;
-    laser_re(): angle_min(0.0), angle_max(0.0), angle_increment(0.0), scan_time(0.0), range_min(0.0), range_max(0.0), ranges(), intensities() {}
-};
 /**
  * This tutorial demonstrates simple receipt of messages over the ROS system.
  */
 // %Tag(CALLBACK)%
-laser_re* laser_scan = new laser_re();
+sensor_msgs::LaserScan laser_scan;
+
 
 void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg)
 { 
-    laser_scan->angle_min = laser_msg->angle_min;
-    laser_scan->angle_max = laser_msg->angle_max;
-    laser_scan->angle_increment = laser_msg->angle_increment;                                    
-    laser_scan->scan_time = laser_msg->scan_time;
-    laser_scan->range_min = laser_msg->range_min;
-    laser_scan->range_max = laser_msg->range_max;
-    laser_scan->ranges = laser_msg->ranges;
-    laser_scan->intensities = laser_msg->intensities;
+    laser_scan.angle_min = laser_msg->angle_min;
+    laser_scan.angle_max = laser_msg->angle_max;
+    laser_scan.angle_increment = laser_msg->angle_increment;                                    
+    laser_scan.scan_time = laser_msg->scan_time;
+    laser_scan.range_min = laser_msg->range_min;
+    laser_scan.range_max = laser_msg->range_max;
+    laser_scan.ranges = laser_msg->ranges;
+    laser_scan.intensities = laser_msg->intensities;
 
- printf("i am here \n");
 }
 // %EndTag(CALLBACK)%
 
@@ -93,7 +80,6 @@ int main(int argc, char **argv)
   ros::NodeHandle n;
   ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
   ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
-  ros::Publisher map_info_pub = n.advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
   ros::Rate r(30);
   /**
    * The subscribe() call is how you tell ROS that you want to receive messages
@@ -113,6 +99,8 @@ int main(int argc, char **argv)
 // %Tag(SUBSCRIBER)%
   printf("start listening\n");
   ros::Subscriber sub = n.subscribe("/base_scan", 1000, laser_receive);
+
+  //init map
   nav_msgs::OccupancyGrid Fetch_map;
   Fetch_map.header.seq = count;
   Fetch_map.header.frame_id = "/base_link";
@@ -122,16 +110,15 @@ int main(int argc, char **argv)
   Fetch_map.info.width = 1000;
   Fetch_map.info.height = 1000;
 
-  Fetch_map.info.origin.position.x = 0.0;
-  Fetch_map.info.origin.position.y = 0.0;
+  Fetch_map.info.origin.position.x = -25.0;
+  Fetch_map.info.origin.position.y = -25.0;
   Fetch_map.info.origin.position.z = 0.0;
   Fetch_map.info.origin.orientation.w = 1.0;
-  Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 100);
+  Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 50);
   //int data[2] = {100, 100};
   //Fetch_map.data = &data;
   //printf("%d\n", Fetch_map.data[0]);
-	
-
+  Mapping O_gmapping(25, 1, 1);
 
 // %EndTag(SUBSCRIBER)%
 
@@ -145,9 +132,16 @@ int main(int argc, char **argv)
     // Init occupancy grid
       Fetch_map.header.seq = count;
       //map_info_pub.publish(Fetch_map.info);
+      geometry_msgs::Pose2D pose_r;
+
+      pose_r.x = 0.0;
+      pose_r.y = 0.0;
+
+      O_gmapping.updateMap(laser_scan, pose_r, Fetch_map);//Update map
 
       map_pub.publish(Fetch_map);
 
+      //init laser marker rviz
 
   		visualization_msgs::Marker line_list;
 
@@ -167,15 +161,17 @@ int main(int argc, char **argv)
 
       float angle;
 
-      for(uint i=0;i<laser_scan->ranges.size();i++)
+
+      //send laser data to rviz
+      for(uint i=0;i<laser_scan.ranges.size();i++)
       {
-          if(angle <= laser_scan->angle_max)
+          if(angle <= laser_scan.angle_max)
           {
-              angle = laser_scan->angle_min+i*laser_scan->angle_increment;
+              angle = laser_scan.angle_min+i*laser_scan.angle_increment;
           }
           else
           {
-              angle = laser_scan->angle_max;
+              angle = laser_scan.angle_max;
           }
     			
           geometry_msgs::Point p;
@@ -186,24 +182,24 @@ int main(int argc, char **argv)
 
   			  line_list.points.push_back(p);
 
-          if (isnan(laser_scan->ranges[i]))
+          if (isnan(laser_scan.ranges[i]))
           {
-              p.x = laser_scan->range_max*cos(angle);
-              p.y = laser_scan->range_max*sin(angle);
+              p.x = laser_scan.range_max*cos(angle);
+              p.y = laser_scan.range_max*sin(angle);
           }
           else
           {
-              p.x = laser_scan->ranges[i]*cos(angle);
-              p.y = laser_scan->ranges[i]*sin(angle);
+              p.x = laser_scan.ranges[i]*cos(angle);
+              p.y = laser_scan.ranges[i]*sin(angle);
           }      
 
           line_list.points.push_back(p);  
 
 		  }
-    marker_pub.publish(line_list);
-    ros::spinOnce();
-  	r.sleep();
-count++;
+      marker_pub.publish(line_list);
+      ros::spinOnce();
+    	r.sleep();
+      count++;
   }
 // %EndTag(SPIN)%
 
