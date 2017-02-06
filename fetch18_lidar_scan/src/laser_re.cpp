@@ -26,15 +26,7 @@
  */
 
 // %Tag(FULLTEXT)%
-#include "ros/ros.h"
-#include "std_msgs/String.h"
-#include "sensor_msgs/LaserScan.h"
-#include "visualization_msgs/Marker.h"
-#include "nav_msgs/OccupancyGrid.h"
-#include "cmath"
-#include "iostream"
-#include "vector"
-#include "mapping.hpp"
+#include "../include/main.hpp"
 
 
 /**
@@ -103,7 +95,7 @@ int main(int argc, char **argv)
   //init map
   nav_msgs::OccupancyGrid Fetch_map;
   Fetch_map.header.seq = count;
-  Fetch_map.header.frame_id = "/base_link";
+  Fetch_map.header.frame_id = "/map";
   Fetch_map.header.stamp = ros::Time::now();
   Fetch_map.info.map_load_time = ros::Time::now();
   Fetch_map.info.resolution = 0.05;//m/cell
@@ -145,7 +137,7 @@ int main(int argc, char **argv)
 
   		visualization_msgs::Marker line_list;
 
-  		line_list.header.frame_id = "/base_link";
+  		line_list.header.frame_id = "/laser_scan";
   		line_list.header.stamp = ros::Time::now();
   		line_list.ns = "points_and_lines";
   		line_list.action = visualization_msgs::Marker::ADD;

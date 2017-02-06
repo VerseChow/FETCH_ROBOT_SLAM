@@ -1,4 +1,4 @@
-#include "mapping.hpp"
+#include "../include/main.hpp"
 
 #define pi 3.1415926
 
