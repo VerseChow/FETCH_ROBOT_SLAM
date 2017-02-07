@@ -1,4 +1,4 @@
-#include "../include/main.hpp"
+#include "main.hpp"
 
 #define pi 3.1415926
 
@@ -20,10 +20,11 @@ void Mapping::updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_
     
 	for(size_t scannum=0;scannum<laser_msg.ranges.size(); scannum++)//determin the line 
 	{	
-	    pose_r.x = pose.x;
-	    pose_r.y = pose.y;
+	    pose_r.x = pose.x+0.23*cos(pose.theta);//laser scan frame translation 0.23 
+	    pose_r.y = pose.y+0.23*sin(pose.theta);
+	    pose_r.theta = pose.theta;
 	    
-	    theta = laser_msg.angle_min+laser_msg.angle_increment*scannum;
+	    theta = pose_r.theta+laser_msg.angle_min+laser_msg.angle_increment*scannum;
 	    
 	    if (isnan(laser_msg.ranges[scannum]))
 	    {
@@ -39,42 +40,42 @@ void Mapping::updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_
 	    /*grid index at the original pose and the terminal of the ray*/
 	    grid_r = global_position_to_grid_cell(pose_r, map);
 	    grid_t = global_position_to_grid_cell(pose_t, map);
+
 	    i0 = (int)grid_r.x;
 	    j0 = (int)grid_r.y;
 	    it = (int)grid_t.x;
 	    jt = (int)grid_t.y;
 
+		//printf("%d\t%d\t%d\t%d\n",i0, j0, it, jt);    
+/*
 	    printf("grid_r: %d %d\n",i0, j0);
 	    printf("grid_r: %d %d\n",it, jt);
-	    
+*/	    
 	    if(laser_msg.ranges[scannum]< kMaxLaserDistance_)
 	    {
+		    logtemp = getlog_odds(it, jt, map);
+			if(logtemp<100)
+			{
+			    logtemp = logtemp+kHitOdds_;
+	    		setlog_odds(it,jt,logtemp,map);
+			}
+			
+			Bresenham(i0, j0, it, jt, map);
+			
+			logtemp = getlog_odds(it, jt, map);
+		    
+			if(logtemp<100)
+			{
+			    logtemp = logtemp+kHitOdds_;
+	    		setlog_odds(it,jt,logtemp,map);	
+			}
 
-
-	    logtemp = getlog_odds(it, jt, map);
-		if(logtemp<100)
-		{
-		    logtemp = logtemp+kHitOdds_;
-    		setlog_odds(it,jt,logtemp,map);
-		}
-	
-		
-		Bresenham(i0, j0, it, jt, map);
-		
-		logtemp = getlog_odds(it, jt, map);
-	    
-		if(logtemp<100)
-		{
-		    logtemp = logtemp+kHitOdds_;
-    		setlog_odds(it,jt,logtemp,map);	
-		}
-
-		
-		
-	    }
-	    else if(laser_msg.ranges[scannum] >= kMaxLaserDistance_)
-	    {
-		Bresenham(i0, j0, it, jt, map);
+			
+			
+		    }
+		    else if(laser_msg.ranges[scannum] >= kMaxLaserDistance_)
+		    {
+			Bresenham(i0, j0, it, jt, map);
 	    }
 	}
     
@@ -151,7 +152,7 @@ bool Mapping::setlog_odds(size_t xi, size_t yi, int logvalue, nav_msgs::Occupanc
 {
 	if((xi<=map.info.width)&&(yi<=map.info.height))
 	{
-		size_t index = (xi-1)*(map.info.width) + (yi-1);
+		size_t index = (yi-1)*(map.info.height) + (xi-1);
 		map.data[index] = logvalue;
 		return true;
 	}
@@ -163,7 +164,7 @@ int Mapping::getlog_odds(size_t xi, size_t yi, const nav_msgs::OccupancyGrid& ma
 {
 	if((xi<=map.info.width)&&(yi<=map.info.height))
 	{
-		size_t index = (xi-1)*(map.info.width) + (yi-1);
+		size_t index = (yi-1)*(map.info.height) + (xi-1);
 		return map.data[index];
 	}
 	else
@@ -175,8 +176,10 @@ geometry_msgs::Point Mapping::global_position_to_grid_cell(const geometry_msgs::
 	geometry_msgs::Point Grid;
 	float offsetx = -map.info.origin.position.x;
 	float offsety = -map.info.origin.position.y;
+    //printf("%f\t%f\t%f\n",pose.x+offsetx,pose.y+offsety,pose.theta);
 	Grid.x = floor((pose.x+offsetx)/(map.info.resolution));
 	Grid.y = floor((pose.y+offsety)/(map.info.resolution));
+
 	return Grid;
 }
 

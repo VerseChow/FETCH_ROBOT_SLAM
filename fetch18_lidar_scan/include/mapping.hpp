@@ -41,7 +41,7 @@ class Mapping
         float A, B ,C;
         geometry_msgs::Pose2D pose_r, pose_t;//pose of robot
         /*grid index at the original pose and the terminal of the ray*/
-        size_t i0, j0, it, jt;//
+        int i0, j0, it, jt;//
 
         bool l_determine(size_t i, size_t j, float length);
         
