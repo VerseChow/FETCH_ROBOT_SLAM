@@ -29,8 +29,10 @@ class Mapping
         * \param    pose            Pose of the robot at the time when the last ray was measured
         * \param    map             OccupancyGrid instance to be updated
         */
-        void updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_msgs::Pose2D& pose, nav_msgs::OccupancyGrid& map);
-
+        void updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_msgs::Pose2D& pose, nav_msgs::OccupancyGrid& map, float offset);
+        static int getlog_odds(int xi, int yi, const nav_msgs::OccupancyGrid& map);
+        static geometry_msgs::Point global_position_to_grid_cell(const geometry_msgs::Pose2D pose, const nav_msgs::OccupancyGrid& map);
+        static void check_range(int& i, int& j, const nav_msgs::OccupancyGrid& map);
 
     private:
         
@@ -43,14 +45,13 @@ class Mapping
         /*grid index at the original pose and the terminal of the ray*/
         int i0, j0, it, jt;//
 
-        bool l_determine(size_t i, size_t j, float length);
         
         bool ifsteep(int x0, int y0, int xt, int yt);
         void Bresenham(int i0, int j0, int xt, int yt, nav_msgs::OccupancyGrid& map);
         
-        bool setlog_odds(size_t xi, size_t yt, int logvalue, nav_msgs::OccupancyGrid& map);
-        int getlog_odds(size_t xi, size_t yi, const nav_msgs::OccupancyGrid& map);
-        geometry_msgs::Point global_position_to_grid_cell(const geometry_msgs::Pose2D pose, const nav_msgs::OccupancyGrid& map);
+        bool setlog_odds(int xi, int yt, int logvalue, nav_msgs::OccupancyGrid& map);
+        //int getlog_odds(int xi, int yi, const nav_msgs::OccupancyGrid& map);
+        //geometry_msgs::Point global_position_to_grid_cell(const geometry_msgs::Pose2D pose, const nav_msgs::OccupancyGrid& map);
 
 
 };

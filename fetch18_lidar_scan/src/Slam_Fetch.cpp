@@ -27,20 +27,54 @@
 
 // %Tag(FULLTEXT)%
 #include "main.hpp"
-
+#include "mapping.hpp"
+#include "particle_filter.hpp"
 
 /**
  * This tutorial demonstrates simple receipt of messages over the ROS system.
  */
 // %Tag(CALLBACK)%
-
 geometry_msgs::Pose2D pose_r;
 
 
 sensor_msgs::LaserScan laser_scan;
 geometry_msgs::Vector3 translation_info;
+std::vector<Particle> samples;
+
+bool first_odom = false;
+bool fist_laser = false;
+bool firs_tf = false;
 
 void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r);
+
+void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg);
+void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>& sampe_particles);
+/*
+void *visualize_marker(void *threadid)
+{
+    int argc; 
+    char **argv;
+    ros::init(argc, argv, "marker_visualize");
+    ros::NodeHandle n;
+    ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+    ros::Subscriber sub_scan = n.subscribe("/base_scan", 1000, laser_receive);
+    ros::Rate r(30);
+
+    while(ros::ok())
+    {
+        ros::spinOnce();
+
+        draw_particles(marker_pub, samples);
+        //draw_laser_scan(laser_scan, marker_pub, pose_r);
+        r.sleep();
+    }
+    pthread_exit(NULL);
+
+}*/
+
+
+
+
 
 void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg)
 { 
@@ -53,6 +87,7 @@ void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg)
     laser_scan.ranges = laser_msg->ranges;
     std::reverse(laser_scan.ranges.begin(), laser_scan.ranges.end());
     laser_scan.intensities = laser_msg->intensities;
+    fist_laser = true;
 }
 // %EndTag(CALLBACK)%
 void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
@@ -62,8 +97,10 @@ void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
     {
         if (TF_Message->transforms[i].child_frame_id == frame_name)
         {
-            translation_info = TF_Message->transforms[1].transform.translation;
-            printf("%f\t%f\t%f\n", translation_info.x, translation_info.y, translation_info.z);
+            
+            translation_info = TF_Message->transforms[i].transform.translation;
+            firs_tf = true;
+            //printf("%f\t%f\t%f\n", translation_info.x, translation_info.y, translation_info.z);
         }
     }
 }
@@ -80,99 +117,78 @@ void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
 
     m.getRPY(roll, pitch, yaw);
     pose_r.theta = yaw;
-
+    first_odom = true;
 }
 
 int main(int argc, char **argv)
 {
-  /**
-   * The ros::init() function needs to see argc and argv so that it can perform
-   * any ROS arguments and name remapping that were provided at the command line.
-   * For programmatic remappings you can use a different version of init() which takes
-   * remappings directly, but for most command-line programs, passing argc and argv is
-   * the easiest way to do it.  The third argument to init() is the name of the node.
-   *
-   * You must call one of the versions of ros::init() before using any other
-   * part of the ROS system.
-   */
-  ros::init(argc, argv, "laser_re");
-	float count = 0;
-  /**
-   * NodeHandle is the main access point to communications with the ROS system.
-   * The first NodeHandle constructed will fully initialize this node, and the last
-   * NodeHandle destructed will close down the node.
-   */
-  ros::NodeHandle n;
-  ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
-  ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
-  ros::Rate r(30);
-  /**
-   * The subscribe() call is how you tell ROS that you want to receive messages
-   * on a given topic.  This invokes a call to the ROS
-   * master node, which keeps a registry of who is publishing and who
-   * is subscribing.  Messages are passed to a callback function, here
-   * called chatterCallback.  subscribe() returns a Subscriber object that you
-   * must hold on to until you want to unsubscribe.  When all copies of the Subscriber
-   * object go out of scope, this callback will automatically be unsubscribed from
-   * this topic.
-   *
-   * The second parameter to the subscribe() function is the size of the message
-   * queue.  If messages are arriving faster than they are being processed, this
-   * is the number of messages that will be buffered up before beginning to throw
-   * away the oldest ones.
-   */
-// %Tag(SUBSCRIBER)%
-  printf("start listening\n");
-  ros::Subscriber sub_scan = n.subscribe("/base_scan", 1000, laser_receive);
-  ros::Subscriber sub_tf = n.subscribe("/tf", 1000, tranform_receive);
-  ros::Subscriber sub_odom = n.subscribe("/odom_combined", 1000, odom_receive);
-  //init tranform_receive
-  nav_msgs::OccupancyGrid Fetch_map;
-  Fetch_map.header.seq = count;
-  Fetch_map.header.frame_id = "/odom";
-  Fetch_map.header.stamp = ros::Time::now();
-  Fetch_map.info.map_load_time = ros::Time::now();
-  Fetch_map.info.resolution = 0.05;//m/cell
-  Fetch_map.info.width = 1000;
-  Fetch_map.info.height = 1000;
+    ros::init(argc, argv, "laser_re");
+  	float count = 0;
+    //samples.resize(1000);
 
-  Fetch_map.info.origin.position.x = -25.0;
-  Fetch_map.info.origin.position.y = -25.0;
-  Fetch_map.info.origin.position.z = 0.0;
-  Fetch_map.info.origin.orientation.w = 1.0;
-  Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 50);
-  //int data[2] = {100, 100};
-  //Fetch_map.data = &data;
-  //printf("%d\n", Fetch_map.data[0]);
-  Mapping O_gmapping(25, 1, 1);
+    ros::NodeHandle n;
+    
+    ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
+    ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+    ros::Rate r(30);
+  // %Tag(SUBSCRIBER)%
+    printf("start listening\n");
+    ros::Subscriber sub_scan = n.subscribe("/base_scan", 1000, laser_receive);
+    ros::Subscriber sub_tf = n.subscribe("/tf", 1000, tranform_receive);
+    ros::Subscriber sub_odom = n.subscribe("/odom_combined", 1000, odom_receive);
+    //init tranform_receive
+    nav_msgs::OccupancyGrid Fetch_map;
+    Fetch_map.header.seq = count;
+    Fetch_map.header.frame_id = "/odom";
+    Fetch_map.header.stamp = ros::Time::now();
+    Fetch_map.info.map_load_time = ros::Time::now();
+    Fetch_map.info.resolution = 0.05;//m/cell
+    Fetch_map.info.width = 10000;
+    Fetch_map.info.height = 10000;
 
-// %EndTag(SUBSCRIBER)%
+    Fetch_map.info.origin.position.x = -250.0;
+    Fetch_map.info.origin.position.y = -250.0;
+    Fetch_map.info.origin.position.z = 0.0;
+    Fetch_map.info.origin.orientation.w = 1.0;
+    Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 50);
 
-  /**
-   * ros::spin() will enter a loop, pumping callbacks.  With this version, all
-   * callbacks will be called from within this thread (the main one).  ros::spin()
-   * will exit when Ctrl-C is pressed, or the node is shutdown by the master.
-   */
-  while (ros::ok())
-  {
-    // Init occupancy grid
-      Fetch_map.header.seq = count;
-      //map_info_pub.publish(Fetch_map.info);
+    Mapping O_gmapping(25, 1, 1);
 
-      map_pub.publish(Fetch_map);
+    while(ros::ok())
+    {
+        if(firs_tf && fist_laser && first_odom)
+            break;
 
-      //init laser marker rviz
-      draw_laser_scan(laser_scan, marker_pub, pose_r);
+        ros::spinOnce();
+    }
 
-      ros::spinOnce();
-      if(pose_r.theta != 0)
-          O_gmapping.updateMap(laser_scan, pose_r, Fetch_map);//Update map
-    	r.sleep();
-      count++;
-  }
+    ParticleFilter P_Filter(500, translation_info.x);
+    P_Filter.initialize_FilterAtPose(pose_r);
+
+  // %EndTag(SUBSCRIBER)%
+
+    while (ros::ok())
+    {
+      // Init occupancy grid
+        Fetch_map.header.seq = count;
+        //printf("1111\n");
+        O_gmapping.updateMap(laser_scan, pose_r, Fetch_map, translation_info.x);//Update map
+        //printf("1113\n");
+        P_Filter.update_Filter(pose_r, laser_scan, Fetch_map);
+
+        samples = P_Filter.particles();
+
+        printf("Draw Particles\n");
+
+        map_pub.publish(Fetch_map); 
+        draw_particles(marker_pub, samples);
+        ros::spinOnce();
+        r.sleep();
+        count++;
+    }
 // %EndTag(SPIN)%
 
-  return 0;
+    return 0;
 }
 // %EndTag(FULLTEXT)%
 void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r)
@@ -183,7 +199,7 @@ void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publish
       visualization_msgs::Marker line_list;
       line_list.header.frame_id = "/odom";
       line_list.header.stamp = ros::Time::now();
-      line_list.ns = "points_and_lines";
+      line_list.ns = "scan_lines";
       line_list.action = visualization_msgs::Marker::ADD;
       line_list.pose.orientation.w = 1.0;
       line_list.color.g = 1.0;
@@ -209,8 +225,8 @@ void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publish
           
           geometry_msgs::Point p;
           
-          p.x = pose_r.x+0.23*cos(pose_r.theta);//laser translation 0.23
-          p.y = pose_r.y+0.23*sin(pose_r.theta);
+          p.x = pose_r.x+translation_info.x*cos(pose_r.theta);//laser translation 0.23
+          p.y = pose_r.y+translation_info.x*sin(pose_r.theta);
           p.z = translation_info.z;
 
           line_list.points.push_back(p);
@@ -230,4 +246,33 @@ void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publish
 
       }
       marker_pub.publish(line_list);
+}
+
+void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>& sample_particles)
+{
+    visualization_msgs::Marker Points;
+    Points.header.frame_id = "/odom";
+    Points.header.stamp = ros::Time::now();
+    Points.ns = "sample_particles";
+    Points.action = visualization_msgs::Marker::ADD;
+    Points.pose.orientation.w = 1.0;
+    Points.color.r = 1.0;
+    Points.color.a = 1.0;
+
+    Points.type = visualization_msgs::Marker::POINTS;
+    Points.id = 0;
+    Points.scale.x = 0.05;
+    Points.scale.y = 0.05;
+    Points.scale.z = 0.05;
+
+    for(int i=0; i<sample_particles.size(); i++)
+    {
+        geometry_msgs::Point p;
+        p.x = sample_particles[i].pose.x;
+        p.y = sample_particles[i].pose.y;
+        Points.points.push_back(p);
+        printf("drawing: %f\t%f\t\n", p.x, p.y);
+    }
+
+    marker_pub.publish(Points);
 }

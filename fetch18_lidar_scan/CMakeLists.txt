@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(fetch18_lidar_scan)
 
+add_definitions(-std=c++11)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -124,9 +126,10 @@ include_directories(
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_executable(laser_re src/laser_re.cpp src/mapping.cpp)
-target_link_libraries(laser_re ${catkin_LIBRARIES})
-add_dependencies(laser_re ${catkin_LIBRARIES})
+add_executable(Slam_Fetch src/Slam_Fetch.cpp src/mapping.cpp src/action_model.cpp src/sensor_model.cpp src/particle_filter.cpp)
+
+target_link_libraries(Slam_Fetch ${catkin_LIBRARIES})
+add_dependencies(Slam_Fetch ${catkin_LIBRARIES})
 
 
 #############
