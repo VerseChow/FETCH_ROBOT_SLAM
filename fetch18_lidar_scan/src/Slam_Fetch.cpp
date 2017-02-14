@@ -34,8 +34,8 @@
  * This tutorial demonstrates simple receipt of messages over the ROS system.
  */
 // %Tag(CALLBACK)%
-geometry_msgs::Pose2D pose_r;
-
+geometry_msgs::Pose2D pose_odom;
+geometry_msgs::Pose2D slam_pose;
 
 sensor_msgs::LaserScan laser_scan;
 geometry_msgs::Vector3 translation_info;
@@ -109,14 +109,14 @@ void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
 {
     double roll, pitch, yaw;
 
-    pose_r.x = Odom_msg->pose.pose.position.x;
-    pose_r.y = Odom_msg->pose.pose.position.y;
+    pose_odom.x = Odom_msg->pose.pose.position.x;
+    pose_odom.y = Odom_msg->pose.pose.position.y;
 
     tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
     tf::Matrix3x3 m(q);
 
     m.getRPY(roll, pitch, yaw);
-    pose_r.theta = yaw;
+    pose_odom.theta = yaw;
     first_odom = true;
 }
 
@@ -162,8 +162,9 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
 
-    ParticleFilter P_Filter(500, translation_info.x);
-    P_Filter.initialize_FilterAtPose(pose_r);
+    ParticleFilter P_Filter(2000, translation_info.x);
+    P_Filter.initialize_FilterAtPose(pose_odom);
+    slam_pose = pose_odom;
 
   // %EndTag(SUBSCRIBER)%
 
@@ -172,9 +173,9 @@ int main(int argc, char **argv)
       // Init occupancy grid
         Fetch_map.header.seq = count;
         //printf("1111\n");
-        O_gmapping.updateMap(laser_scan, pose_r, Fetch_map, translation_info.x);//Update map
+        O_gmapping.updateMap(laser_scan, slam_pose, Fetch_map, translation_info.x);//Update map
         //printf("1113\n");
-        P_Filter.update_Filter(pose_r, laser_scan, Fetch_map);
+        slam_pose = P_Filter.update_Filter(pose_odom, laser_scan, Fetch_map);
 
         samples = P_Filter.particles();
 

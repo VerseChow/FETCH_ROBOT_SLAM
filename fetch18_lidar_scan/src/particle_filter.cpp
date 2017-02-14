@@ -18,7 +18,7 @@ void ParticleFilter::initialize_FilterAtPose(const geometry_msgs::Pose2D& odomet
 {
     ///////////// TODO: Implement your method for initializing the particles in the particle filter /////////////////
 
-    actionModel_ = ActionModel(0.05, 0.05, 0.05, 0.05, 0.01, odometry);
+    actionModel_ = ActionModel(0.01, 0.01, 0.01, 0.01, 0.01, odometry);
     sensorModel_ = SensorModel(25, 0.01, laser_frame_offset);
 
     Particle sampleparticle;
