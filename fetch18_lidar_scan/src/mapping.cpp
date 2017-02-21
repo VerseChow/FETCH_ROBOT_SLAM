@@ -53,10 +53,10 @@ void Mapping::updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_
 	    printf("grid_r: %d %d\n",i0, j0);
 	    printf("grid_r: %d %d\n",it, jt);
 */	    
-	    if(laser_msg.ranges[scannum]< kMaxLaserDistance_)
+	    if(laser_msg.ranges[scannum] < kMaxLaserDistance_)
 	    {
 		    logtemp = getlog_odds(it, jt, map);
-			if(logtemp<100)
+			if( logtemp <= (100-kHitOdds_))
 			{
 			    logtemp = logtemp+kHitOdds_;
 	    		setlog_odds(it,jt,logtemp,map);
@@ -66,7 +66,7 @@ void Mapping::updateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_
 			
 			logtemp = getlog_odds(it, jt, map);
 		    
-			if(logtemp<100)
+			if( logtemp <= (100-kHitOdds_))
 			{
 			    logtemp = logtemp+kHitOdds_;
 	    		setlog_odds(it,jt,logtemp,map);	
@@ -124,9 +124,9 @@ void Mapping::Bresenham(int x0, int y0, int xl, int yl, nav_msgs::OccupancyGrid&
 		{
 			logtemp = getlog_odds(j,i,map);
 
-		    if(logtemp>0)
+		    if( logtemp >= kMissOdds_ )
 		    {
-			    logtemp = getlog_odds(j,i,map)-abs(kMissOdds_);
+			    logtemp = getlog_odds(j,i,map)-kMissOdds_;
 	    	    setlog_odds(j,i,logtemp,map);
 		    }
 
@@ -135,9 +135,9 @@ void Mapping::Bresenham(int x0, int y0, int xl, int yl, nav_msgs::OccupancyGrid&
 		{
 			logtemp = getlog_odds(i,j,map);
 		    
-		    if(logtemp>0)
+		    if( logtemp >= kMissOdds_)
 		    {
-		    	logtemp = getlog_odds(i,j,map)-abs(kMissOdds_);
+		    	logtemp = getlog_odds(i,j,map)-kMissOdds_;
 			    setlog_odds(i,j,logtemp,map);
 		    }
 			    

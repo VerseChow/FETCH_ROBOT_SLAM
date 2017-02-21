@@ -56,23 +56,33 @@ float SensorModel::likelihood(const Particle& particle, const sensor_msgs::Laser
 	   	Mapping::check_range(i0, j0, O_map);
 	    Mapping::check_range(it, jt, O_map);
 	    
+	    if(Mapping::getlog_odds(it,jt,O_map)>80)
+	    	weight += Mapping::getlog_odds(it,jt,O_map);
+	    //else
+	    //	weight += (Mapping::getlog_odds(it,jt,O_map)/100);
+	    //printf("11111 %f \n",  weight);
 	    //printf("%d 3\n", (int)scannum);
+	    /*
 		grid_obstacle = Bresenham(i0, j0, it, jt, O_map);
 		//printf("%d 4\n", (int)scannum);
-		z_k = sqrt(((grid_obstacle.x-grid_r.x)*(grid_obstacle.x-grid_r.x)+
-			  (grid_obstacle.y-grid_r.y)*(grid_obstacle.y-grid_r.y))*O_map.info.resolution);
+		z_k = sqrt((grid_obstacle.x-grid_r.x)*(grid_obstacle.x-grid_r.x)+
+			  (grid_obstacle.y-grid_r.y)*(grid_obstacle.y-grid_r.y))*O_map.info.resolution;
 		if(isnan)
 			weight += max_dit(z_k);
 		else
+		{
 			weight += gaussian(dist, sigma_hit, z_k);
-		//printf("%d 5\n", (int)scannum);
+	
+		}
+		*/
+		
 	}
 	return weight;
 }
 
 float SensorModel::gaussian(float m, float sigma, float zk)
 {
-	return 1/sqrt(2*pi*sigma*sigma)*exp(-0.5*(((zk-m)*(zk-m))/(sigma*sigma)));
+	return (1/(sigma*sqrt(2*pi)))*exp(-((zk-m)*(zk-m))/(2*sigma*sigma));
 }
 
 float SensorModel::max_dit(float zk)
@@ -87,10 +97,10 @@ float SensorModel::max_dit(float zk)
 
 geometry_msgs::Point SensorModel::Bresenham(int x0, int y0, int xl, int yl, const nav_msgs::OccupancyGrid& map)
 {
-    int logtemp, logmax=0;
+    int logtemp;
     int deltax, deltay, error, jstep, j;
     bool steep = ifsteep(x0, y0, xl, yl);
-    geometry_msgs::Point max_grid;
+    geometry_msgs::Point obstacle_grid;
 
     if(steep)
     {
@@ -117,11 +127,11 @@ geometry_msgs::Point SensorModel::Bresenham(int x0, int y0, int xl, int yl, cons
 
 			logtemp = Mapping::getlog_odds(j,i,map);
 
-		    if(logtemp>logmax)
+		    if(logtemp>90)
 		    {
-			    logmax = logtemp;
-			    max_grid.x = j;
-			    max_grid.y = i;
+			    obstacle_grid.x = j;
+			    obstacle_grid.y = i;
+			    break;
 		    }
 
 		}
@@ -129,11 +139,11 @@ geometry_msgs::Point SensorModel::Bresenham(int x0, int y0, int xl, int yl, cons
 		{
 			logtemp = Mapping::getlog_odds(i,j,map);
 
-		    if(logtemp>logmax)
+		    if(logtemp>90)
 		    {
-			    logmax = logtemp;
-			    max_grid.x = i;
-			    max_grid.y = j;
+			    obstacle_grid.x = i;
+			    obstacle_grid.y = j;
+			    break;
 		    }
 			    
 		}
@@ -144,7 +154,7 @@ geometry_msgs::Point SensorModel::Bresenham(int x0, int y0, int xl, int yl, cons
 		    error = error + deltax;
 		}   
     }
-    return max_grid;
+    return obstacle_grid;
 }
 
 

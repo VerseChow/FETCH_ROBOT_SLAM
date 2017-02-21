@@ -18,8 +18,8 @@ void ParticleFilter::initialize_FilterAtPose(const geometry_msgs::Pose2D& odomet
 {
     ///////////// TODO: Implement your method for initializing the particles in the particle filter /////////////////
 
-    actionModel_ = ActionModel(0.01, 0.01, 0.01, 0.01, 0.01, odometry);
-    sensorModel_ = SensorModel(25, 0.01, laser_frame_offset);
+    actionModel_ = ActionModel(0.1, 0.1, 0.001, 0.001, 0.0001, odometry);
+    sensorModel_ = SensorModel(25, 0.02, laser_frame_offset);
 
     Particle sampleparticle;
 
@@ -42,14 +42,15 @@ geometry_msgs::Pose2D ParticleFilter::update_Filter(const geometry_msgs::Pose2D&
 
     if(actionModel_.update_Action(odometry))
     {
-        std::vector<Particle> prior = resample_PosteriorDistribution();
-        std::vector<Particle> proposal = compute_ProposalDistribution(prior);
-        printf("begin update weight\n") ;
+        std::vector<Particle> prior = posterior_;
+        std::vector<Particle> proposal = compute_ProposalDistribution(prior);   
+        //printf("begin update weight\n") ;
         //posterior_ = proposal;
         posterior_ = compute_NormalizedPosterior(proposal, laser, map);   
-        printf("finish update weight\n") ;
+        posterior_ = resample_PosteriorDistribution();
+        //printf("finish update weight\n") ;
         posteriorPose_ = estimate_PosteriorPose(posterior_); 
-        printf("finish update Filter \n");
+        //printf("finish update Filter \n");
     }
     //std::cout << "updating\n";
 
@@ -115,19 +116,22 @@ std::vector<Particle> ParticleFilter::compute_NormalizedPosterior(std::vector<Pa
     float sum_weight = 0;
     for(int i=0; i<proposal.size(); i++)
     {     
-        printf("begin calculate weight of %d particle\n", i);
+        //printf("begin calculate weight of %d particle\n", i);
         proposal[i].weight = sensorModel_.likelihood(proposal[i], laser, map);
-        printf("finish calculate weight of %d particle\n", i);
+        //printf("finish calculate weight of %d particle\n", i);
         posterior.push_back( proposal[i] );
 
         sum_weight += proposal[i].weight;
+        //printf("proposal_weight%f", proposal[i].weight);
     }
-    printf("normalize weight\n");
+    //printf("normalize weight\n");
     sum_weight = proposal.size()/sum_weight;
+    //printf("sum_weight%f", sum_weight);
     ////Normlize the weight such that their mean is 1
     for(int i=0;i<proposal.size();i++)
     {
         posterior[i].weight = posterior[i].weight*sum_weight;
+        //printf("posteriorweight:%f\n", posterior[i].weight);
     }
     //std::cout << "computed norm\n";
     return posterior;
@@ -140,7 +144,7 @@ geometry_msgs::Pose2D ParticleFilter::estimate_PosteriorPose(std::vector<Particl
     //////// TODO: Implement your method for computing the final pose estimate based on the posterior distribution
 	//std::cout << "estimating\n";
     //////CHANGE TO COMPUTE the WEIGHTED MEAN of top n 
-    int pick_num = 10;
+    int pick_num = 1;
     float weightsum = 0;
     geometry_msgs::Pose2D pose_Estimate;
     ///find the top 10 pose's number with max weight
@@ -156,6 +160,7 @@ geometry_msgs::Pose2D ParticleFilter::estimate_PosteriorPose(std::vector<Particl
         pose_Estimate.y += posterior[i].pose.y*posterior[i].weight;
         pose_Estimate.theta += wrap_to_pi(posterior[i].pose.theta)*posterior[i].weight;///CHANGE theta to the standard range
         weightsum += posterior[i].weight;
+        printf("weight:%f\n", posterior[i].weight);
     }
     //std::cout<<"after loop2\n";
 

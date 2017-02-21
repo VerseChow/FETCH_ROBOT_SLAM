@@ -18,6 +18,7 @@
 #include "visualization_msgs/Marker.h"
 #include "geometry_msgs/Vector3.h"
 #include "std_msgs/String.h"
+#include "std_msgs/Header.h"
 #include "sensor_msgs/LaserScan.h"
 #include "tf2_msgs/TFMessage.h"
 #include "tf/transform_datatypes.h"
@@ -37,6 +38,12 @@ struct Particle
 {	
 	geometry_msgs::Pose2D pose;
 	float weight;
+};
+
+struct Pose_xyt
+{
+	std_msgs::Header header;
+	geometry_msgs::Pose2D pose;
 };
 
 

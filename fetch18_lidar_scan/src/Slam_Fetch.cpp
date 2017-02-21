@@ -34,16 +34,22 @@
  * This tutorial demonstrates simple receipt of messages over the ROS system.
  */
 // %Tag(CALLBACK)%
-geometry_msgs::Pose2D pose_odom;
-geometry_msgs::Pose2D slam_pose;
+//struct Pose_xyt;
 
+Pose_xyt pose_odom;
+Pose_xyt slam_pose;
+float theta_pre;
+float theta_cur;
+float u_theta;
 sensor_msgs::LaserScan laser_scan;
 geometry_msgs::Vector3 translation_info;
 std::vector<Particle> samples;
 
+
+
 bool first_odom = false;
 bool fist_laser = false;
-bool firs_tf = false;
+bool first_tf = false;
 
 void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r);
 
@@ -78,16 +84,20 @@ void *visualize_marker(void *threadid)
 
 void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg)
 { 
-    laser_scan.angle_min = -laser_msg->angle_max;//becase laser scan fram rotate 180 degrees according to the fram of map
-    laser_scan.angle_max = -laser_msg->angle_min;
-    laser_scan.angle_increment = laser_msg->angle_increment;                                    
-    laser_scan.scan_time = laser_msg->scan_time;
-    laser_scan.range_min = laser_msg->range_min;
-    laser_scan.range_max = laser_msg->range_max;
-    laser_scan.ranges = laser_msg->ranges;
-    std::reverse(laser_scan.ranges.begin(), laser_scan.ranges.end());
-    laser_scan.intensities = laser_msg->intensities;
-    fist_laser = true;
+    //if(pose_odom.header.stamp.sec == laser_msg->header.stamp.sec)
+    //{
+      laser_scan.header = laser_msg->header;
+      laser_scan.angle_min = -laser_msg->angle_max;//becase laser scan fram rotate 180 degrees according to the fram of map
+      laser_scan.angle_max = -laser_msg->angle_min;
+      laser_scan.angle_increment = laser_msg->angle_increment;                                    
+      laser_scan.scan_time = laser_msg->scan_time;
+      laser_scan.range_min = laser_msg->range_min;
+      laser_scan.range_max = laser_msg->range_max;
+      laser_scan.ranges = laser_msg->ranges;
+      std::reverse(laser_scan.ranges.begin(), laser_scan.ranges.end());
+      laser_scan.intensities = laser_msg->intensities;
+      fist_laser = true;
+    //}
 }
 // %EndTag(CALLBACK)%
 void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
@@ -99,7 +109,7 @@ void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
         {
             
             translation_info = TF_Message->transforms[i].transform.translation;
-            firs_tf = true;
+            first_tf = true;
             //printf("%f\t%f\t%f\n", translation_info.x, translation_info.y, translation_info.z);
         }
     }
@@ -107,25 +117,47 @@ void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
 
 void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
 {
-    double roll, pitch, yaw;
+    if(first_odom)
+    {
+        double roll, pitch, yaw;
+        pose_odom.header = Odom_msg->header;
+        pose_odom.pose.x = Odom_msg->pose.pose.position.x;
+        pose_odom.pose.y = Odom_msg->pose.pose.position.y;
 
-    pose_odom.x = Odom_msg->pose.pose.position.x;
-    pose_odom.y = Odom_msg->pose.pose.position.y;
+        tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
+        tf::Matrix3x3 m(q);
 
-    tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
-    tf::Matrix3x3 m(q);
+        m.getRPY(roll, pitch, yaw);
+        pose_odom.pose.theta = wrap_to_pi(yaw);
+        theta_cur = wrap_to_pi(yaw);
+        u_theta = theta_cur-theta_pre;
+        theta_pre = theta_cur;
+    }
+    else
+    {
+        double roll, pitch, yaw;
+        pose_odom.header = Odom_msg->header;
+        pose_odom.pose.x = Odom_msg->pose.pose.position.x;
+        pose_odom.pose.y = Odom_msg->pose.pose.position.y;
 
-    m.getRPY(roll, pitch, yaw);
-    pose_odom.theta = yaw;
-    first_odom = true;
+        tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
+        tf::Matrix3x3 m(q);
+
+        m.getRPY(roll, pitch, yaw);
+        pose_odom.pose.theta = wrap_to_pi(yaw);
+        //printf("1\n");
+        theta_pre = pose_odom.pose.theta;
+        theta_cur = pose_odom.pose.theta;
+        first_odom = true;
+    }
+
 }
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "laser_re");
-  	float count = 0;
+  	int count = 1;
     //samples.resize(1000);
-
     ros::NodeHandle n;
     
     ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
@@ -152,18 +184,20 @@ int main(int argc, char **argv)
     Fetch_map.info.origin.orientation.w = 1.0;
     Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 50);
 
-    Mapping O_gmapping(25, 1, 1);
+    Mapping O_gmapping(25,10,1);
 
     while(ros::ok())
     {
-        if(firs_tf && fist_laser && first_odom)
-            break;
+        if(first_tf && fist_laser && first_odom){
 
+          //printf("2\n");
+            break;}
+        //printf("1\n");
         ros::spinOnce();
     }
 
-    ParticleFilter P_Filter(2000, translation_info.x);
-    P_Filter.initialize_FilterAtPose(pose_odom);
+    ParticleFilter P_Filter(1000, translation_info.x);
+    P_Filter.initialize_FilterAtPose(pose_odom.pose);
     slam_pose = pose_odom;
 
   // %EndTag(SUBSCRIBER)%
@@ -173,9 +207,20 @@ int main(int argc, char **argv)
       // Init occupancy grid
         Fetch_map.header.seq = count;
         //printf("1111\n");
-        O_gmapping.updateMap(laser_scan, slam_pose, Fetch_map, translation_info.x);//Update map
+        while(count<=1)
+        {
+            if(fabs(u_theta)<=0.001)
+              O_gmapping.updateMap(laser_scan, slam_pose.pose, Fetch_map, translation_info.x);//Update 
+            count++;
+        } 
         //printf("1113\n");
-        slam_pose = P_Filter.update_Filter(pose_odom, laser_scan, Fetch_map);
+        count = 1;
+        //if(laser_scan.header.stamp.nsec==pose_odom.header.stamp.nsec)
+        //while(count<=5)
+        //{
+          slam_pose.pose = P_Filter.update_Filter(pose_odom.pose, laser_scan, Fetch_map);
+          //count++;
+        //}
 
         samples = P_Filter.particles();
 
@@ -184,8 +229,8 @@ int main(int argc, char **argv)
         map_pub.publish(Fetch_map); 
         draw_particles(marker_pub, samples);
         ros::spinOnce();
-        r.sleep();
-        count++;
+        //r.sleep();
+        
     }
 // %EndTag(SPIN)%
 
@@ -272,7 +317,7 @@ void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>
         p.x = sample_particles[i].pose.x;
         p.y = sample_particles[i].pose.y;
         Points.points.push_back(p);
-        printf("drawing: %f\t%f\t\n", p.x, p.y);
+        //printf("drawing: %f\t%f\t\n", p.x, p.y);
     }
 
     marker_pub.publish(Points);

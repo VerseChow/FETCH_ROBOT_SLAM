@@ -39,7 +39,7 @@ std::vector<Particle> ActionModel::apply_Action(std::vector<Particle>& particles
 	for(int i=0; i<particles.size(); i++)
 	{	
 
-		printf("%d\t%d\n", i, (int)particles.size());	
+		//printf("%d\t%d\n", i, (int)particles.size());	
 		d_rot1_e = d_rot1-sample(a1*d_rot1+a2*d_trans, generator);
 		d_trans_e = d_trans-sample(a3*d_trans+a4*(d_rot1+d_rot2), generator);
 		d_rot2_e = d_rot2-sample(a1*d_rot2+a2*d_trans, generator);
@@ -49,7 +49,7 @@ std::vector<Particle> ActionModel::apply_Action(std::vector<Particle>& particles
 		particles.at(i).pose.theta += d_rot1_e+d_rot2_e;
 		particles.at(i).pose.theta = wrap_to_pi(particles.at(i).pose.theta);
 
-		printf("%f\t%f\t%f\t\n", particles[i].pose.x, particles[i].pose.y, particles[i].pose.theta);
+		//printf("%f\t%f\t%f\t\n", particles[i].pose.x, particles[i].pose.y, particles[i].pose.theta);
 	}
 
 	pose_pre = pose_cur;
@@ -63,30 +63,4 @@ float ActionModel::sample(float sigma, std::default_random_engine& generator)
 	std::normal_distribution<double> distribution(0, sigma);
 	float number = (float)distribution(generator);
 	return number;
-/*
-	float x1, x2, w, y1;
-	float m=0;
-	static float y2;
-	static int use_last = 0;
-
-	if (use_last)		        
-	{
-		y1 = y2;
-		use_last = 0;
-	}
-	else
-	{
-		do {
-			x1 = (float)(rand() % 100)/100;
-    		x2 = (float)(rand() % 100)/100;
-			w = x1 * x1 + x2 * x2;
-		} while ( w >= 1.0 );
-
-		w = sqrt( (-2.0 * log( w ) ) / w );
-		y1 = x1 * w;
-		y2 = x2 * w;
-		use_last = 1;
-	}
-	return( m + y1 * sigma );
-	*/
 }
