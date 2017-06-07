@@ -41,20 +41,31 @@ Pose_xyt slam_pose;
 float theta_pre;
 float theta_cur;
 float u_theta;
+float u_motion;
 sensor_msgs::LaserScan laser_scan;
 geometry_msgs::Vector3 translation_info;
+
+
 std::vector<Particle> samples;
 
+pcl::PointCloud<pcl::PointXYZRGB> rgbd_map_raw;
 
+sensor_msgs::PointCloud2 map_pcl2;
 
+tf::Vector3 camera_trans;
+tf::Quaternion camera_rot;
+
+bool pcl_updated = false;
 bool first_odom = false;
-bool fist_laser = false;
+bool first_laser = false;
 bool first_tf = false;
+
 
 void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r);
 
 void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg);
 void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>& sampe_particles);
+tf::StampedTransform get_rgbd_map();
 /*
 void *visualize_marker(void *threadid)
 {
@@ -79,40 +90,75 @@ void *visualize_marker(void *threadid)
 }*/
 
 
+void pcl2_receive(const sensor_msgs::PointCloud2::ConstPtr& pcl2_msg)
+{
 
+    if(first_tf)
+    {
+        tf::TransformListener listener_camera_odom;
+        tf::StampedTransform transform;
+        //sensor_msgs::PointCloud2 pcl_out;
+        try
+        {
+            listener_camera_odom.waitForTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), ros::Duration(10.0));
+            listener_camera_odom.lookupTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), transform); 
+          
+            pcl::fromROSMsg(*pcl2_msg, rgbd_map_raw);
+
+            sensor_msgs::PointCloud2 map_pcl2;
+            pcl::PointCloud<pcl::PointXYZRGB> pcl_out;
+            pcl_ros::transformPointCloud(rgbd_map_raw, pcl_out, transform);
+
+            rgbd_map_raw = pcl_out;
+        
+            pcl_updated = true;
+        }
+        catch(tf::TransformException ex)
+        {
+            ROS_ERROR("%s",ex.what());
+            ros::Duration(1.0).sleep();
+        }
+    }
+}
 
 
 void laser_receive(const sensor_msgs::LaserScan::ConstPtr& laser_msg)
 { 
     //if(pose_odom.header.stamp.sec == laser_msg->header.stamp.sec)
     //{
-      laser_scan.header = laser_msg->header;
-      laser_scan.angle_min = -laser_msg->angle_max;//becase laser scan fram rotate 180 degrees according to the fram of map
-      laser_scan.angle_max = -laser_msg->angle_min;
-      laser_scan.angle_increment = laser_msg->angle_increment;                                    
-      laser_scan.scan_time = laser_msg->scan_time;
-      laser_scan.range_min = laser_msg->range_min;
-      laser_scan.range_max = laser_msg->range_max;
-      laser_scan.ranges = laser_msg->ranges;
-      std::reverse(laser_scan.ranges.begin(), laser_scan.ranges.end());
-      laser_scan.intensities = laser_msg->intensities;
-      fist_laser = true;
+    laser_scan.header = laser_msg->header;
+    laser_scan.angle_min = -laser_msg->angle_max;//becase laser scan fram rotate 180 degrees according to the fram of map
+    laser_scan.angle_max = -laser_msg->angle_min;
+    laser_scan.angle_increment = laser_msg->angle_increment;                                    
+    laser_scan.scan_time = laser_msg->scan_time;
+    laser_scan.range_min = laser_msg->range_min;
+    laser_scan.range_max = laser_msg->range_max;
+    laser_scan.ranges = laser_msg->ranges;
+    std::reverse(laser_scan.ranges.begin(), laser_scan.ranges.end());
+    laser_scan.intensities = laser_msg->intensities;
+    first_laser = true;
     //}
 }
 // %EndTag(CALLBACK)%
 void tranform_receive(const tf2_msgs::TFMessage::ConstPtr& TF_Message)
 {
-    std::string frame_name = "laser_link";
+ 
+    //tf::StampedTransform transform;
+    std::string frame_name_1 = "laser_link";
+
+   
     for(int i=0;i<TF_Message->transforms.size();i++)
     {
-        if (TF_Message->transforms[i].child_frame_id == frame_name)
+        if (TF_Message->transforms[i].child_frame_id == frame_name_1)
         {
             
-            translation_info = TF_Message->transforms[i].transform.translation;
-            first_tf = true;
+            translation_info = TF_Message->transforms[i].transform.translation; 
+
             //printf("%f\t%f\t%f\n", translation_info.x, translation_info.y, translation_info.z);
-        }
+        }      
+          
     }
+    first_tf = true;
 }
 
 void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
@@ -155,19 +201,28 @@ void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "laser_re");
-  	int count = 1;
+
+    int count = 1;
+
+    pcl::PointCloud<pcl::PointXYZRGB> rgbdmap;
+ 
+
+    ros::init(argc, argv, "Slam_Fetch");
+    tf::TransformListener listener_camera_odom;
+    tf::StampedTransform transform;    
     //samples.resize(1000);
     ros::NodeHandle n;
     
     ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
     ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+    ros::Publisher rgbd_map_raw_pub = n.advertise<sensor_msgs::PointCloud2>("rgbd_map_raw", 10);
     ros::Rate r(30);
   // %Tag(SUBSCRIBER)%
     printf("start listening\n");
     ros::Subscriber sub_scan = n.subscribe("/base_scan", 1000, laser_receive);
     ros::Subscriber sub_tf = n.subscribe("/tf", 1000, tranform_receive);
     ros::Subscriber sub_odom = n.subscribe("/odom_combined", 1000, odom_receive);
+    //ros::Subscriber sub_pcl2 = n.subscribe("/head_camera/depth_registered/points", 1000, pcl2_receive);
     //init tranform_receive
     nav_msgs::OccupancyGrid Fetch_map;
     Fetch_map.header.seq = count;
@@ -185,51 +240,156 @@ int main(int argc, char **argv)
     Fetch_map.data.assign(Fetch_map.info.width*Fetch_map.info.height, 50);
 
     Mapping O_gmapping(25,10,1);
+    
 
     while(ros::ok())
     {
-        if(first_tf && fist_laser && first_odom){
-
-          //printf("2\n");
-            break;}
-        //printf("1\n");
+        if(first_tf && first_laser && first_odom)
+          
+          break;
         ros::spinOnce();
     }
+
+    try
+    {
+        listener_camera_odom.waitForTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), ros::Duration(10.0));
+        listener_camera_odom.lookupTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), transform);
+        camera_trans = transform.getOrigin();
+        camera_rot = transform.getRotation();
+    }
+    catch(tf::TransformException ex)
+    { 
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+    }
+
+
 
     ParticleFilter P_Filter(1000, translation_info.x);
     P_Filter.initialize_FilterAtPose(pose_odom.pose);
     slam_pose = pose_odom;
-
   // %EndTag(SUBSCRIBER)%
 
     while (ros::ok())
     {
-      // Init occupancy grid
+
+        /*
         Fetch_map.header.seq = count;
-        //printf("1111\n");
+
+        if(fabs(u_theta)<=0.001)
+          O_gmapping.updateMap(laser_scan, slam_pose.pose, Fetch_map, translation_info.x);//Update 
+       
         while(count<=1)
         {
-            if(fabs(u_theta)<=0.001)
-              O_gmapping.updateMap(laser_scan, slam_pose.pose, Fetch_map, translation_info.x);//Update 
-            count++;
-        } 
-        //printf("1113\n");
-        count = 1;
-        //if(laser_scan.header.stamp.nsec==pose_odom.header.stamp.nsec)
-        //while(count<=5)
-        //{
           slam_pose.pose = P_Filter.update_Filter(pose_odom.pose, laser_scan, Fetch_map);
-          //count++;
-        //}
-
+          count++;
+        }
+        count = 1;
         samples = P_Filter.particles();
 
-        printf("Draw Particles\n");
-
+        //printf("Draw Particles\n");
         map_pub.publish(Fetch_map); 
         draw_particles(marker_pub, samples);
-        ros::spinOnce();
-        //r.sleep();
+      */
+
+        try
+        {
+            listener_camera_odom.waitForTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), ros::Duration(10.0));
+            listener_camera_odom.lookupTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), transform);
+            tf::Vector3 temp_tans = transform.getOrigin();
+            tf::Quaternion temp_rot = transform.getRotation();
+            printf("%f\t%f\n",fabs((temp_tans-camera_trans).length()), fabs(wrap_to_pi_2((temp_rot-camera_rot).getAngle())));
+            if((fabs((temp_tans-camera_trans).length())<0.001)&&(fabs(wrap_to_pi_2((temp_rot-camera_rot).getAngle())) < 0.001))
+            {
+                transform = get_rgbd_map();
+                
+                camera_trans = transform.getOrigin();
+                camera_rot = transform.getRotation();
+                
+
+                pcl::PCLPointCloud2::Ptr cloud (new pcl::PCLPointCloud2 ());
+
+                sensor_msgs::PointCloud2 map_pcl2;
+
+                pcl::StatisticalOutlierRemoval<pcl::PCLPointCloud2> OutlierFilter;
+                pcl::VoxelGrid<pcl::PCLPointCloud2> VoxelFilter;
+                rgbdmap +=  rgbd_map_raw;
+
+                pcl::toPCLPointCloud2(rgbdmap, *cloud);
+                
+                VoxelFilter.setInputCloud (cloud);
+                VoxelFilter.setLeafSize (0.01f, 0.01f, 0.01f);
+                VoxelFilter.filter (*cloud);
+                
+                OutlierFilter.setInputCloud (cloud);
+                OutlierFilter.setMeanK (10);
+                OutlierFilter.setStddevMulThresh (1.0);
+                OutlierFilter.filter (*cloud);
+
+                pcl::fromPCLPointCloud2(*cloud, rgbdmap);
+
+                pcl::toROSMsg(rgbdmap,map_pcl2);
+                map_pcl2.header.frame_id = "/odom";
+                rgbd_map_raw_pub.publish(map_pcl2);
+                printf("render rgbd map\n");
+            }
+            else
+            {
+                camera_trans = temp_tans;
+                camera_rot = temp_rot;
+            }
+        }
+        catch(tf::TransformException ex)
+        {
+            ROS_ERROR("%s",ex.what());
+            ros::Duration(1.0).sleep();
+        }
+        /*
+        if(pcl_updated)
+        { 
+            tf::TransformListener listener_camera_odom;
+            tf::StampedTransform transform;
+            try 
+            {
+                pcl::PCLPointCloud2::Ptr cloud (new pcl::PCLPointCloud2 ());
+
+                //listener_camera_odom.waitForTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), ros::Duration(10.0));
+                //listener_camera_odom.lookupTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), transform);
+                sensor_msgs::PointCloud2 map_pcl2;
+                //pcl::PointCloud<pcl::PointXYZRGB> pcl_out;
+                //pcl_ros::transformPointCloud(rgbd_map_raw, pcl_out, transform);
+                pcl::StatisticalOutlierRemoval<pcl::PCLPointCloud2> OutlierFilter;
+                pcl::VoxelGrid<pcl::PCLPointCloud2> VoxelFilter;
+                rgbdmap +=  rgbd_map_raw;
+
+                pcl::toPCLPointCloud2(rgbdmap, *cloud);
+                
+                VoxelFilter.setInputCloud (cloud);
+                VoxelFilter.setLeafSize (0.01f, 0.01f, 0.01f);
+                VoxelFilter.filter (*cloud);
+                
+                OutlierFilter.setInputCloud (cloud);
+                OutlierFilter.setMeanK (50);
+                OutlierFilter.setStddevMulThresh (1.0);
+                OutlierFilter.filter (*cloud);
+
+                pcl::fromPCLPointCloud2(*cloud, rgbdmap);
+
+                pcl::toROSMsg(rgbdmap,map_pcl2);
+                map_pcl2.header.frame_id = "/odom";
+                rgbd_map_raw_pub.publish(map_pcl2);
+                
+                pcl_updated = false;
+            }
+            catch(tf::TransformException ex){
+                ROS_ERROR("%s",ex.what());
+                ros::Duration(1.0).sleep();
+            }
+
+        }
+        */
+
+        //ros::spinOnce();
         
     }
 // %EndTag(SPIN)%
@@ -237,7 +397,7 @@ int main(int argc, char **argv)
     return 0;
 }
 // %EndTag(FULLTEXT)%
-void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r)
+inline void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publisher marker_pub, const geometry_msgs::Pose2D& pose_r)
 {
       float robot_angle=pose_r.theta;
       float angle;
@@ -294,7 +454,7 @@ void draw_laser_scan(const sensor_msgs::LaserScan laser_scan, const ros::Publish
       marker_pub.publish(line_list);
 }
 
-void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>& sample_particles)
+inline void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>& sample_particles)
 {
     visualization_msgs::Marker Points;
     Points.header.frame_id = "/odom";
@@ -321,4 +481,32 @@ void draw_particles(const ros::Publisher marker_pub, const std::vector<Particle>
     }
 
     marker_pub.publish(Points);
+}
+
+tf::StampedTransform get_rgbd_map()
+{
+    
+    tf::TransformListener listener_camera_odom;
+    tf::StampedTransform transform;
+        //sensor_msgs::PointCloud2 pcl_out;
+    try
+    {
+        listener_camera_odom.waitForTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), ros::Duration(1.0));
+        listener_camera_odom.lookupTransform("/odom", "/head_camera_rgb_optical_frame", ros::Time(0), transform); 
+        sensor_msgs::PointCloud2::ConstPtr pcl2_msg  = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/head_camera/depth_registered/points", ros::Duration(1));
+        pcl::fromROSMsg(*pcl2_msg, rgbd_map_raw);
+
+        sensor_msgs::PointCloud2 map_pcl2;
+        pcl::PointCloud<pcl::PointXYZRGB> pcl_out;
+        pcl_ros::transformPointCloud(rgbd_map_raw, pcl_out, transform);
+
+        rgbd_map_raw = pcl_out;   
+        //pcl_updated = true;
+    }
+    catch(tf::TransformException ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+    }
+    return transform;
 }

@@ -26,6 +26,18 @@
 #include "nav_msgs/OccupancyGrid.h"
 #include "nav_msgs/Odometry.h"
 #include "sensor_msgs/Imu.h"
+#include "sensor_msgs/PointCloud2.h"
+
+#include <pcl/conversions.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_types.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+//#include <pcl/io/pcd_io.h>
 
 #include "angle_functions.hpp"
 
@@ -45,8 +57,6 @@ struct Pose_xyt
 	std_msgs::Header header;
 	geometry_msgs::Pose2D pose;
 };
-
-
 
 
 

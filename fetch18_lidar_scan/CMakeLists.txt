@@ -14,9 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   visualization_msgs
   geometry_msgs
-  tf2_msgs	
+  tf2_msgs
+  pcl_ros	
+  pcl_conversions
 )
-
+find_package(PCL 1.8 REQUIRED)
+add_definitions(${PCL_DEFINITIONS})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -122,14 +125,13 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  include
 )
-
-include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(Slam_Fetch src/Slam_Fetch.cpp src/mapping.cpp src/action_model.cpp src/sensor_model.cpp src/particle_filter.cpp)
 
-target_link_libraries(Slam_Fetch ${catkin_LIBRARIES})
-add_dependencies(Slam_Fetch ${catkin_LIBRARIES})
+target_link_libraries(Slam_Fetch ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
 #############

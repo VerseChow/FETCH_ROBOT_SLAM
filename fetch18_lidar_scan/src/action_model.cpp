@@ -15,7 +15,7 @@ ActionModel::ActionModel(){}
 
 bool ActionModel::update_Action(const geometry_msgs::Pose2D& odom_r)
 {
-	printf("begin update_Action\n");
+	//printf("begin update_Action\n");
 	pose_cur = odom_r;
 	u_x = pose_cur.x-pose_pre.x;
 	u_y = pose_cur.y-pose_pre.y;
