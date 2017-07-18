@@ -13,6 +13,7 @@ laser_frame_offset(offset)
 
 }
 
+ParticleFilter::~ParticleFilter(){}
 
 void ParticleFilter::initialize_FilterAtPose(const geometry_msgs::Pose2D& odometry)
 {
@@ -40,7 +41,7 @@ geometry_msgs::Pose2D ParticleFilter::update_Filter(const geometry_msgs::Pose2D&
     // Only update the particles if motion was detected. If the robot didn't move, then
     // obviously don't do anything.
 
-    if(actionModel_.update_Action(odometry))
+    if(actionModel_.UpdateAction(odometry))
     {
         std::vector<Particle> prior = posterior_;
         std::vector<Particle> proposal = compute_ProposalDistribution(prior);   
@@ -98,7 +99,7 @@ std::vector<Particle> ParticleFilter::compute_ProposalDistribution(std::vector<P
     //////////// TODO: Implement your algorithm for creating the proposal distribution by sampling from the ActionModel
     std::vector<Particle> proposal;
 
-    proposal = actionModel_.apply_Action(prior);
+    proposal = actionModel_.ApplyAction(prior);
 
     return proposal ;
 }
@@ -115,7 +116,7 @@ std::vector<Particle> ParticleFilter::compute_NormalizedPosterior(std::vector<Pa
     float sum_weight = 0;
     for(int i=0; i<proposal.size(); i++)
     {     
-        proposal[i].weight = sensorModel_.likelihood(proposal[i], laser, map);
+        proposal[i].weight = sensorModel_.Likelihood(proposal[i], laser, map);
 
         posterior.push_back( proposal[i] );
 
@@ -144,7 +145,7 @@ geometry_msgs::Pose2D ParticleFilter::estimate_PosteriorPose(std::vector<Particl
     ///find the top 10 pose's number with max weight
 
 
-    std::sort(posterior.begin(), posterior.end(), customGreater);
+    std::sort(posterior.begin(), posterior.end(), MyCompare);
 
 
     for(int i = 0; i<pick_num; i++)

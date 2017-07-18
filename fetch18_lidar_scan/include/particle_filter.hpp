@@ -1,19 +1,24 @@
 #ifndef PARTICLE_FILTER_HPP
 #define PARTICLE_FILTER_HPP
 
-#include "main.hpp"
+#include "vector"
+#include "cmath"
+#include "algorithm"
+
+#include "geometry_msgs/Pose2D.h"
+#include "sensor_msgs/LaserScan.h"
+#include "nav_msgs/OccupancyGrid.h"
+
+#include "datatypes.h"
 #include "action_model.hpp"
 #include "sensor_model.hpp"
 
+#define pi 3.1415926
+
 struct Particle;
 
-struct 
-{
-    inline bool operator() (const Particle& lft, const Particle& rht)
-    {   
-        return lft.weight > rht.weight;
-    }   
-} customGreater;
+class SensorModel;
+class ActionModel;
 
 /**
 * ParticleFilter implements a standard SIR-based particle filter. The set of particles is initialized at some pose. Then
@@ -31,18 +36,22 @@ struct
 */
 class ParticleFilter
 {
+    struct CustomGreater
+    {
+        inline bool operator() (const Particle& lft, const Particle& rht)
+        {   
+            return lft.weight > rht.weight;
+        }   
+    } MyCompare;
     public:
-        //int utime_last;     //time of parent, previous odometry
-        //int utime_now;      //time of current(action model, proposal), given by odometry
-        //pose_xyt_t last_esti;   //the last best estimate
         /**
         * Constructor for ParticleFilter.
         *
         * \param    numParticles        Number of particles to use
-        * \pre  numParticles > 1
         */
         ParticleFilter(int numParticles, float offset);
         
+        ~ParticleFilter();
         /**
         * initializeFilterAtPose initializes the particle filter with the samples distributed according
         * to the provided pose estimate.
@@ -63,26 +72,25 @@ class ParticleFilter
         geometry_msgs::Pose2D update_Filter(const geometry_msgs::Pose2D& odometry,
                                             const sensor_msgs::LaserScan& laser,
                                             const nav_msgs::OccupancyGrid& map);
-
-
-         /**
+        /**
         * poseEstimate retrieves the current pose estimate computed by the filter.
         */
         geometry_msgs::Pose2D estimate_PosteriorPose(std::vector<Particle>& posterior);   
         std::vector<Particle> particles(void);
     private:
-        
-        std::vector<Particle> posterior_;     // The posterior distribution of particles at the end of the previous update
-        geometry_msgs::Pose2D posteriorPose_;              // Pose estimate associated with the posterior distribution
-        
-
-        ActionModel actionModel_;  // Action model to apply to particles on each update
-        SensorModel sensorModel_;  // Sensor model to compute particle weights
-        
-        int kNumParticles_;         // Number of particles to use for estimating the 
+        /*the posterior distribution of particles at the end of the previous update*/
+        std::vector<Particle> posterior_;     
+        /*pose estimate associated with the posterior distribution*/
+        geometry_msgs::Pose2D posteriorPose_; 
+        /*Action model to apply to particles on each update*/
+        ActionModel actionModel_;
+        /*Sensor model to compute particle weights*/
+        SensorModel sensorModel_;
+        /*number of particles to use for estimating*/
+        int kNumParticles_;
         float laser_frame_offset;
-
-        std::random_device rd;//uniform distribution
+        /*uniform distribution*/
+        std::random_device rd;
         std::mt19937 gen;
         std::uniform_int_distribution<> dis;
 
@@ -91,7 +99,6 @@ class ParticleFilter
         std::vector<Particle> compute_NormalizedPosterior(std::vector<Particle>& proposal,
                                                          const sensor_msgs::LaserScan& laser,
                                                          const nav_msgs::OccupancyGrid& map);
-
 };
 
-#endif // SLAM_PARTICLE_FILTER_HPP
+#endif
