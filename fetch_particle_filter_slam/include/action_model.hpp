@@ -9,8 +9,6 @@
 
 #include "datatypes.h"
 
-struct Particle;
-
 class ActionModel
 {
 	public:	
@@ -19,7 +17,7 @@ class ActionModel
 		ActionModel();
 		~ActionModel();
 		bool UpdateAction(const geometry_msgs::Pose2D& odom_r);
-		std::vector<Particle> ApplyAction(std::vector<Particle>& particles);
+		Particles ApplyAction(Particles& particles);
 	private:
 		float a1_, a2_, a3_, a4_;
 		float u_x_, u_y_, u_theta_;

@@ -11,11 +11,11 @@
 #include "datatypes.h"
 
 void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
-						      const ros::Publisher marker_pub,\
-						      const geometry_msgs::Pose2D& pose_r,\
-						      const geometry_msgs::Vector3 translation_info);
+			      const ros::Publisher marker_pub,\
+			      const geometry_msgs::Pose2D& pose_r,\
+			      const geometry_msgs::Vector3 translation_info);
 
 void DrawParticles(const ros::Publisher marker_pub,\
-	              const std::vector<Particle> sample_particles);
+	              const Particles sample_particles);
 
 #endif

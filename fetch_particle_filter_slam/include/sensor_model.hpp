@@ -9,8 +9,6 @@
 
 #include "datatypes.h"
 
-struct Particle;
-
 class SensorModel
 {
 	public:

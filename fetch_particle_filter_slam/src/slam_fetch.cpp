@@ -5,6 +5,8 @@
 #include "tf/transform_datatypes.h"
 #include "nav_msgs/Odometry.h"
 
+#include "boost/make_shared.hpp"
+
 #include <pcl/conversions.h>
 #include <pcl_ros/transforms.h>
 #include <pcl/io/pcd_io.h>
@@ -25,8 +27,8 @@
 // %Tag(CALLBACK)%
 //struct Pose_xyt;
 
-Pose_xyt pose_odom;
-Pose_xyt slam_pose;
+Pose_xyt pose_odom = boost::make_shared<pose_xyt>();
+Pose_xyt slam_pose = boost::make_shared<pose_xyt>();
 float theta_pre;
 float theta_cur;
 float u_theta;
@@ -35,7 +37,7 @@ sensor_msgs::LaserScan laser_scan;
 geometry_msgs::Vector3 translation_info;
 
 
-std::vector<Particle> samples;
+Particles samples = boost::make_shared<particles>();
 
 pcl::PointCloud<pcl::PointXYZRGB> rgbd_map_raw;
 
@@ -124,15 +126,15 @@ void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
     if(first_odom)
     {
         double roll, pitch, yaw;
-        pose_odom.header = Odom_msg->header;
-        pose_odom.pose.x = Odom_msg->pose.pose.position.x;
-        pose_odom.pose.y = Odom_msg->pose.pose.position.y;
+        pose_odom->header = Odom_msg->header;
+        pose_odom->pose.x = Odom_msg->pose.pose.position.x;
+        pose_odom->pose.y = Odom_msg->pose.pose.position.y;
 
         tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
         tf::Matrix3x3 m(q);
 
         m.getRPY(roll, pitch, yaw);
-        pose_odom.pose.theta = wrap_to_pi(yaw);
+        pose_odom->pose.theta = wrap_to_pi(yaw);
         theta_cur = wrap_to_pi(yaw);
         u_theta = theta_cur-theta_pre;
         theta_pre = theta_cur;
@@ -140,18 +142,18 @@ void odom_receive(const nav_msgs::Odometry::ConstPtr& Odom_msg)
     else
     {
         double roll, pitch, yaw;
-        pose_odom.header = Odom_msg->header;
-        pose_odom.pose.x = Odom_msg->pose.pose.position.x;
-        pose_odom.pose.y = Odom_msg->pose.pose.position.y;
+        pose_odom->header = Odom_msg->header;
+        pose_odom->pose.x = Odom_msg->pose.pose.position.x;
+        pose_odom->pose.y = Odom_msg->pose.pose.position.y;
 
         tf::Quaternion q(Odom_msg->pose.pose.orientation.x, Odom_msg->pose.pose.orientation.y, Odom_msg->pose.pose.orientation.z, Odom_msg->pose.pose.orientation.w);
         tf::Matrix3x3 m(q);
 
         m.getRPY(roll, pitch, yaw);
-        pose_odom.pose.theta = wrap_to_pi(yaw);
+        pose_odom->pose.theta = wrap_to_pi(yaw);
         //printf("1\n");
-        theta_pre = pose_odom.pose.theta;
-        theta_cur = pose_odom.pose.theta;
+        theta_pre = pose_odom->pose.theta;
+        theta_cur = pose_odom->pose.theta;
         first_odom = true;
     }
 
@@ -168,7 +170,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Slam_Fetch");
     tf::TransformListener listener_camera_odom;
     tf::StampedTransform transform;    
-    //samples.resize(1000);
+    //samples->resize(1000);
     ros::NodeHandle n;
     
     ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
@@ -223,28 +225,28 @@ int main(int argc, char **argv)
 
 
 
-    ParticleFilter P_Filter(1000, translation_info.x);
-    P_Filter.initialize_FilterAtPose(pose_odom.pose);
+    ParticleFilter P_Filter(3000, translation_info.x);
+    P_Filter.InitializeFilterAtPose(pose_odom->pose);
     slam_pose = pose_odom;
 
     while (ros::ok())
     {
         Fetch_map.header.seq = count;
 
-        if(fabs(u_theta)<=0.001)
-          O_gmapping.UpdateMap(laser_scan, slam_pose.pose, Fetch_map, translation_info.x);//Update 
+        if(fabs(u_theta)<=0.05)
+          O_gmapping.UpdateMap(laser_scan, slam_pose->pose, Fetch_map, translation_info.x);//Update 
        
         while(count<=1)
         {
-          slam_pose.pose = P_Filter.update_Filter(pose_odom.pose, laser_scan, Fetch_map);
+          slam_pose->pose = P_Filter.UpdateFilter(pose_odom->pose, laser_scan, Fetch_map);
           count++;
         }
         count = 1;
-        samples = P_Filter.particles();
+        samples = P_Filter.GetParticles();
 
         //printf("Draw Particles\n");
         map_pub.publish(Fetch_map); 
-        DrawParticles(marker_pub, samples);
+        //DrawParticles(marker_pub, samples);
     
         /*
         try

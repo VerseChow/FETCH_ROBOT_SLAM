@@ -7,160 +7,169 @@ kNumParticles_ (numParticles),
 laser_frame_offset(offset)
 {
     assert(kNumParticles_ > 1);
-
     gen = std::mt19937(rd());
     dis = std::uniform_int_distribution<>(1, kNumParticles_);
 
+    posterior_ = boost::make_shared<particles>();
 }
 
 ParticleFilter::~ParticleFilter(){}
 
-void ParticleFilter::initialize_FilterAtPose(const geometry_msgs::Pose2D& odometry)
+void ParticleFilter::InitializeFilterAtPose(const geometry_msgs::Pose2D& odometry)
 {
-    ///////////// TODO: Implement your method for initializing the particles in the particle filter /////////////////
-
-    actionModel_ = ActionModel(0.1, 0.1, 0.001, 0.001, 0.0001, odometry);
+    /*Initializing the particles in the particle filter*/
+    actionModel_ = ActionModel(0.1, 0.1, 0.01, 0.01, 0.001, odometry);
     sensorModel_ = SensorModel(25, 0.02, laser_frame_offset);
 
-    Particle sampleparticle;
+    Particle sample_particle;// = boost::make_shared<particle>();
 
     for(int i=0; i<kNumParticles_; i++)
     {
-        sampleparticle.pose = odometry;
-        sampleparticle.weight = 1.0; ///NORMLIZE the wieght such their mean equals 1
-        posterior_.push_back(sampleparticle);
+        sample_particle.pose = odometry;
+        /*NORMLIZE the wieght such their mean equals 1*/
+        sample_particle.weight = 1.0; 
+        posterior_->push_back(sample_particle);
     }
-    posteriorPose_ = odometry;        
+    posterior_pose_ = odometry;        
 }
 
 
-geometry_msgs::Pose2D ParticleFilter::update_Filter(const geometry_msgs::Pose2D& odometry,
+geometry_msgs::Pose2D ParticleFilter::UpdateFilter(const geometry_msgs::Pose2D& odometry,
                                                     const sensor_msgs::LaserScan& laser,
                                                     const nav_msgs::OccupancyGrid& map)
 {
-    // Only update the particles if motion was detected. If the robot didn't move, then
-    // obviously don't do anything.
+    /*Only update the particles if motion was detected. If the robot didn't move, then
+    obviously don't do anything.*/
 
     if(actionModel_.UpdateAction(odometry))
     {
-        std::vector<Particle> prior = posterior_;
-        std::vector<Particle> proposal = compute_ProposalDistribution(prior);   
-        //printf("begin update weight\n") ;
+        Particles prior = posterior_;
+        Particles proposal = ComputeProposalDistribution(prior);   
+        //printf("begin update weight\n");
         //posterior_ = proposal;
-        posterior_ = compute_NormalizedPosterior(proposal, laser, map);   
-        posterior_ = resample_PosteriorDistribution();
-        //printf("finish update weight\n") ;
-        posteriorPose_ = estimate_PosteriorPose(posterior_); 
+        posterior_ = ComputeNormalizedPosterior(proposal, laser, map);
+        //printf("finish update weight\n"); 
+        posterior_ = ResamplePosteriorDistribution();
+        //printf("finish resampling\n");
+        posterior_pose_ = EstimatePosteriorPose(posterior_); 
         //printf("finish update Filter \n");
     }
     //std::cout << "updating\n";
 
-    return posteriorPose_;
+    return posterior_pose_;
 }
 
 
-std::vector<Particle> ParticleFilter::particles(void) 
+Particles ParticleFilter::GetParticles() 
 {
     //printf("Tring to fetch Particles\n");
     return posterior_;
 }
 
-
-std::vector<Particle> ParticleFilter::resample_PosteriorDistribution(void)
+Particles ParticleFilter::ResamplePosteriorDistribution()
 {
-    //////////// TODO: Implement your algorithm for resampling from the posterior distribution ///////////////////n";
-    std::vector<Particle> prior;
-
-    float u_dis;///random number to draw i with probability of w
+    /*Resampling from the posterior distribution*/;
+    Particles prior = boost::make_shared<particles>();
+    /*random number to draw i with probability of w*/
+    float u_dis;
     float sum_dist;
-    int pick_num;
+    float min = FLT_MAX;
+    int pick_num = 0, min_index = 0;
 
-    for(int i=0;i<posterior_.size();i++)
+    for(int i=0; i<posterior_->size(); i++)
     {
-        u_dis = (float)dis(gen);//generate a random from 0 to M
-        for(int j=0; j<posterior_.size(); j++)
+        /*generate a random from 0 to M*/
+        u_dis = (float)dis(gen);
+        for(int j=0; j<posterior_->size(); j++)
         {
-            sum_dist += posterior_[j].weight;          
-            if( u_dis<sum_dist )
+            sum_dist += posterior_->at(j).weight;
+            if (posterior_->at(j).weight <= min)
             {
-                pick_num = j;                
+                min = posterior_->at(j).weight;
+                min_index = j;
+            }
+            if (u_dis <= sum_dist)
+            {
+                pick_num = j;              
                 break;
             }
+            else if (j==posterior_->size() || u_dis>sum_dist)
+                pick_num = min_index;
+            //printf("%d\t%d, size:%d\n", i, j, posterior_->size());
+
         }
-        sum_dist = 0;        
-        prior.push_back(posterior_[pick_num]);
+        //printf("%f\t%f\t%d\n", sum_dist, u_dis, pick_num);
+        sum_dist = 0;    
+        prior->push_back(posterior_->at(pick_num));
     }
     return prior;
 }
 
-
-std::vector<Particle> ParticleFilter::compute_ProposalDistribution(std::vector<Particle>& prior)
+Particles ParticleFilter::ComputeProposalDistribution(Particles& prior)
 {
-    //////////// TODO: Implement your algorithm for creating the proposal distribution by sampling from the ActionModel
-    std::vector<Particle> proposal;
+    /*creating the proposal distribution by sampling from the ActionModel*/
+    Particles proposal = boost::make_shared<particles>();
 
     proposal = actionModel_.ApplyAction(prior);
 
     return proposal ;
 }
 
-
-std::vector<Particle> ParticleFilter::compute_NormalizedPosterior(std::vector<Particle>& proposal,
-                                                                  const sensor_msgs::LaserScan& laser,
-                                                                  const nav_msgs::OccupancyGrid& map)
+Particles ParticleFilter::ComputeNormalizedPosterior(Particles& proposal,
+                                                    const sensor_msgs::LaserScan& laser,
+                                                    const nav_msgs::OccupancyGrid& map)
 {
-    /////////// TODO: Implement your algorithm for computing the normalized posterior distribution using the 
-    ///////////       particles in the proposal distribution
-    std::vector<Particle> posterior;
+    /*Computing the normalized posterior distribution using the 
+    particles in the proposal distribution*/
+    Particles posterior = boost::make_shared<particles>();
     //std::cout << "computing norm\n";
     float sum_weight = 0;
-    for(int i=0; i<proposal.size(); i++)
-    {     
-        proposal[i].weight = sensorModel_.Likelihood(proposal[i], laser, map);
-
-        posterior.push_back( proposal[i] );
-
-        sum_weight += proposal[i].weight;
+    for(int i=0; i<proposal->size(); i++)
+    {   
+        //printf("1. %f\n", proposal->at(i).weight);
+        proposal->at(i).weight = sensorModel_.Likelihood(proposal->at(i), laser, map);
+        //printf("2. %f\n", proposal->at(i).weight);
+        posterior->push_back(proposal->at(i));
+        //printf("3. %f\n", posterior->at(i).weight);
+        sum_weight += proposal->at(i).weight;
     }
 
-    sum_weight = proposal.size()/sum_weight;
-
-    for(int i=0;i<proposal.size();i++)
+    sum_weight = proposal->size()/sum_weight;
+    //printf("3. %f\n", sum_weight);
+    for(int i=0; i<proposal->size(); i++)
     {
-        posterior[i].weight = posterior[i].weight*sum_weight;
+        //printf("1. %f\t%f\n", proposal->at(i).weight, sum_weight);
+        posterior->at(i).weight = (posterior->at(i).weight)*sum_weight;
+        //printf("2. %f\t%f\n", posterior->at(i).weight, sum_weight);
     }
 
     return posterior;
 }
 
 
-
-geometry_msgs::Pose2D ParticleFilter::estimate_PosteriorPose(std::vector<Particle>& posterior)
+geometry_msgs::Pose2D ParticleFilter::EstimatePosteriorPose(Particles& posterior)
 {
-    //////// TODO: Implement your method for computing the final pose estimate based on the posterior distribution
-    //////CHANGE TO COMPUTE the WEIGHTED MEAN of top n 
+    /*Compute the final pose estimate based on the posterior distribution
+    Change TO COMPUTE the WEIGHTED MEAN of top n*/
     int pick_num = 1;
     float weightsum = 0;
-    geometry_msgs::Pose2D pose_Estimate;
-    ///find the top 10 pose's number with max weight
-
-
-    std::sort(posterior.begin(), posterior.end(), MyCompare);
-
+    geometry_msgs::Pose2D pose_estimate;
+    /*find the top 10 pose's number with max weight*/
+    std::sort(posterior->begin(), posterior->end(), MyCompare);
 
     for(int i = 0; i<pick_num; i++)
     {
-        pose_Estimate.x += posterior[i].pose.x*posterior[i].weight;
-        pose_Estimate.y += posterior[i].pose.y*posterior[i].weight;
-        pose_Estimate.theta += wrap_to_pi(posterior[i].pose.theta)*posterior[i].weight;///CHANGE theta to the standard range
-        weightsum += posterior[i].weight;
-        //printf("weight:%f\n", posterior[i].weight);
+        pose_estimate.x += posterior->at(i).pose.x*posterior->at(i).weight;
+        pose_estimate.y += posterior->at(i).pose.y*posterior->at(i).weight;
+        pose_estimate.theta += wrap_to_pi(posterior->at(i).pose.theta)*posterior->at(i).weight;///CHANGE theta to the standard range
+        weightsum += posterior->at(i).weight;
+        //printf("weight:%f\n", posterior->at(i).weight);
     }
 
-    pose_Estimate.x = pose_Estimate.x/weightsum;
-    pose_Estimate.y = pose_Estimate.y/weightsum;
-    pose_Estimate.theta = pose_Estimate.theta/weightsum;
+    pose_estimate.x = pose_estimate.x/weightsum;
+    pose_estimate.y = pose_estimate.y/weightsum;
+    pose_estimate.theta = pose_estimate.theta/weightsum;
 
-    return pose_Estimate;
+    return pose_estimate;
 }
 

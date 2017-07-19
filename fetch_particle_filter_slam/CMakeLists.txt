@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(fetch18_lidar_scan)
+project(fetch_particle_filter_slam)
 
 add_definitions(-std=c++11)
 
@@ -22,7 +22,7 @@ find_package(PCL 1.8 REQUIRED)
 add_definitions(${PCL_DEFINITIONS})
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost)
 
 add_subdirectory (utils)
 
@@ -35,21 +35,23 @@ set(slam_files
   ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_model.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/particle_filter.cpp
 )
+
 add_library (slam ${slam_files})
 
 target_include_directories (slam PUBLIC 
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/datatypes
 )
 
 target_link_libraries(slam
   ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
   utils
 )
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/datatypes
 )
@@ -61,6 +63,7 @@ add_executable(Slam_Fetch
 target_link_libraries(Slam_Fetch
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
+  ${Boost_LIBRARIES}
   utils
   slam
 )

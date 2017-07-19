@@ -61,7 +61,7 @@ void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
 }
 
 void DrawParticles(const ros::Publisher marker_pub,\
-	              const std::vector<Particle> sample_particles)
+	                 Particles sample_particles)
 {
     visualization_msgs::Marker Points;
     Points.header.frame_id = "/odom";
@@ -78,11 +78,11 @@ void DrawParticles(const ros::Publisher marker_pub,\
     Points.scale.y = 0.05;
     Points.scale.z = 0.05;
 
-    for(int i=0; i<sample_particles.size(); i++)
+    for(int i=0; i<sample_particles->size(); i++)
     {
         geometry_msgs::Point p;
-        p.x = sample_particles[i].pose.x;
-        p.y = sample_particles[i].pose.y;
+        p.x = sample_particles->at(i).pose.x;
+        p.y = sample_particles->at(i).pose.y;
         Points.points.push_back(p);
     }
     marker_pub.publish(Points);

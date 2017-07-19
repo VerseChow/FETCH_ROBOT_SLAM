@@ -1,0 +1,4 @@
+#ifndef ROS_SLAM_WRAPPER_HPP
+#define ROS_SLAM_WRAPPER_HPP
+
+#endif

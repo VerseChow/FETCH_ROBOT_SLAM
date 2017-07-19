@@ -8,7 +8,10 @@ Mapping::Mapping(float maxLaserDistance, int8_t hitOdds, int8_t missOdds)
 {
 }
 
-void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg, const geometry_msgs::Pose2D& pose, nav_msgs::OccupancyGrid& map, float offset)
+void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg,\
+						const geometry_msgs::Pose2D& pose,\
+						nav_msgs::OccupancyGrid& map,\
+						float offset)
 {
     int logtemp;
 	float dist, theta;

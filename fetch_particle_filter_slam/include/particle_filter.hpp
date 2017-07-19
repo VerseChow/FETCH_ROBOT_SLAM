@@ -4,6 +4,9 @@
 #include "vector"
 #include "cmath"
 #include "algorithm"
+#include "cfloat"
+
+#include "boost/make_shared.hpp"
 
 #include "geometry_msgs/Pose2D.h"
 #include "sensor_msgs/LaserScan.h"
@@ -12,10 +15,6 @@
 #include "datatypes.h"
 #include "action_model.hpp"
 #include "sensor_model.hpp"
-
-#define pi 3.1415926
-
-struct Particle;
 
 class SensorModel;
 class ActionModel;
@@ -43,6 +42,7 @@ class ParticleFilter
             return lft.weight > rht.weight;
         }   
     } MyCompare;
+
     public:
         /**
         * Constructor for ParticleFilter.
@@ -58,7 +58,7 @@ class ParticleFilter
         *
         * \param    pose            Initial pose of the robot
         */
-        void initialize_FilterAtPose(const geometry_msgs::Pose2D& pose);
+        void InitializeFilterAtPose(const geometry_msgs::Pose2D& pose);
         
         /**
         * updateFilter increments the state estimated by the particle filter. The filter update uses the most recent
@@ -69,19 +69,19 @@ class ParticleFilter
         * \param    map             Map built from the maximum likelihood pose estimate
         * \return   Estimated robot pose.
         */
-        geometry_msgs::Pose2D update_Filter(const geometry_msgs::Pose2D& odometry,
+        geometry_msgs::Pose2D UpdateFilter(const geometry_msgs::Pose2D& odometry,
                                             const sensor_msgs::LaserScan& laser,
                                             const nav_msgs::OccupancyGrid& map);
         /**
         * poseEstimate retrieves the current pose estimate computed by the filter.
         */
-        geometry_msgs::Pose2D estimate_PosteriorPose(std::vector<Particle>& posterior);   
-        std::vector<Particle> particles(void);
+        geometry_msgs::Pose2D EstimatePosteriorPose(Particles& posterior);   
+        Particles GetParticles();
     private:
         /*the posterior distribution of particles at the end of the previous update*/
-        std::vector<Particle> posterior_;     
+        Particles posterior_;     
         /*pose estimate associated with the posterior distribution*/
-        geometry_msgs::Pose2D posteriorPose_; 
+        geometry_msgs::Pose2D posterior_pose_; 
         /*Action model to apply to particles on each update*/
         ActionModel actionModel_;
         /*Sensor model to compute particle weights*/
@@ -94,11 +94,11 @@ class ParticleFilter
         std::mt19937 gen;
         std::uniform_int_distribution<> dis;
 
-        std::vector<Particle> resample_PosteriorDistribution(void);
-        std::vector<Particle> compute_ProposalDistribution(std::vector<Particle>& prior);
-        std::vector<Particle> compute_NormalizedPosterior(std::vector<Particle>& proposal,
-                                                         const sensor_msgs::LaserScan& laser,
-                                                         const nav_msgs::OccupancyGrid& map);
+        Particles ResamplePosteriorDistribution();
+        Particles ComputeProposalDistribution(Particles& prior);
+        Particles ComputeNormalizedPosterior(Particles& proposal,
+                                             const sensor_msgs::LaserScan& laser,
+                                             const nav_msgs::OccupancyGrid& map);
 };
 
 #endif
