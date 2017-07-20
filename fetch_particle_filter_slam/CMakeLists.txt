@@ -8,7 +8,6 @@ add_definitions(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  rospy
   std_msgs
   sensor_msgs
   nav_msgs
@@ -25,6 +24,13 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(Boost)
 
 add_subdirectory (utils)
+
+catkin_package(
+#   INCLUDE_DIRS include
+#   LIBRARIES ${PROJECT_NAME}
+#   CATKIN_DEPENDS roscpp nodelet
+#   DEPENDS eigen opencv
+)
 
 ###########
 ## Build ##
@@ -52,8 +58,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/datatypes
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/datatypes
 )
 
 add_executable(Slam_Fetch
