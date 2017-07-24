@@ -50,7 +50,7 @@ class ParticleFilter
         * \param    numParticles        Number of particles to use
         */
         ParticleFilter(int numParticles, float offset);
-        
+        ParticleFilter();       
         ~ParticleFilter();
         /**
         * initializeFilterAtPose initializes the particle filter with the samples distributed according
@@ -58,8 +58,7 @@ class ParticleFilter
         *
         * \param    pose            Initial pose of the robot
         */
-        void InitializeFilterAtPose(const geometry_msgs::Pose2D& pose);
-        
+        void InitializeFilterAtPose(const geometry_msgs::Pose2D& pose);  
         /**
         * updateFilter increments the state estimated by the particle filter. The filter update uses the most recent
         * odometry estimate and laser scan along with the occupancy grid map to estimate the new pose of the robot.

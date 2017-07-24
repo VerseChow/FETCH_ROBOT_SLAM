@@ -1,6 +1,5 @@
 #include "action_model.hpp"
 
-
 ActionModel::ActionModel(float a1, float a2, float a3, float a4, float t,\
 						const geometry_msgs::Pose2D& odom_r):
 a1_(a1), 
@@ -12,7 +11,7 @@ pose_pre_(odom_r)
 {
 }
 
-ActionModel::ActionModel(){};
+ActionModel::ActionModel(){}
 
 ActionModel::~ActionModel(){}
 

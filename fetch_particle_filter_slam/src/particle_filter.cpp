@@ -1,7 +1,5 @@
 #include "particle_filter.hpp"
 
-
-
 ParticleFilter::ParticleFilter(int numParticles, float offset):
 kNumParticles_ (numParticles), 
 laser_frame_offset(offset)
@@ -12,6 +10,8 @@ laser_frame_offset(offset)
 
     posterior_ = boost::make_shared<particles>();
 }
+
+ParticleFilter::ParticleFilter(){}
 
 ParticleFilter::~ParticleFilter(){}
 

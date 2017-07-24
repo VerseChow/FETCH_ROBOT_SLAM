@@ -11,17 +11,15 @@
 */
 class Mapping
 {
-    public:
-        
+    public:    
         /**
         * Constructor for Mapping.
         * 
-        * \param    maxLaserDistance    Maximum distance for the rays to be traced
-        * \param    hitOdds             Increase in occupied odds for cells hit by a laser ray
-        * \param    missOdds            Decrease in occupied odds for cells passed through by a laser ray
+        * \param    max_laser_distance   Maximum distance for the rays to be traced
+        * \param    hit_odds             Increase in occupied odds for cells hit by a laser ray
+        * \param    miss_odds            Decrease in occupied odds for cells passed through by a laser ray
         */
-        Mapping(float maxLaserDistance, int8_t hitOdds, int8_t missOdds);
-        
+        Mapping(float max_laser_distance, int8_t hit_odds, int8_t miss_odds);
         /**
         * updateMap incorporates information from a new laser scan into an existing OccupancyGrid.
         * 
@@ -37,8 +35,7 @@ class Mapping
                                                             const nav_msgs::OccupancyGrid& map);
         static void CheckRange(int& i, int& j, const nav_msgs::OccupancyGrid& map);
 
-    private:
-        
+    private:       
         const float  kMaxLaserDistance_;
         const int8_t kHitOdds_;
         const int8_t kMissOdds_;

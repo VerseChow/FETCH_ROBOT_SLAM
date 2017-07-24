@@ -14,8 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   geometry_msgs
   tf2_msgs
-  pcl_ros	
-  pcl_conversions
 )
 find_package(PCL 1.8 REQUIRED)
 add_definitions(${PCL_DEFINITIONS})
@@ -40,6 +38,7 @@ set(slam_files
   ${CMAKE_CURRENT_SOURCE_DIR}/src/action_model.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_model.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/particle_filter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/slam_fetch_ros_wrapper.cpp
 )
 
 add_library (slam ${slam_files})

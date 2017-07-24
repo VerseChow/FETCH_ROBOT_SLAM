@@ -1,12 +1,12 @@
 #include "mapping.hpp"
 
-
-Mapping::Mapping(float maxLaserDistance, int8_t hitOdds, int8_t missOdds)
-: kMaxLaserDistance_(maxLaserDistance)
-, kHitOdds_(hitOdds)
-, kMissOdds_(missOdds)
+Mapping::Mapping(float max_laser_distance, int8_t hit_odds, int8_t miss_odds):
+kMaxLaserDistance_(max_laser_distance),
+kHitOdds_(hit_odds),
+kMissOdds_(miss_odds)
 {
 }
+
 
 void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg,\
 						const geometry_msgs::Pose2D& pose,\
