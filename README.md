@@ -9,6 +9,7 @@ This is a ROS package used for Fetch Robot to do SLAM. The algorithm is based on
            particles
 2. map (Occupancy Grid Map)
 3. Create a "world" frame, its child frame is "odom" frame
+
 You could visualize them in RVIZ  
 ## Topic Subscribed
 1. tf
