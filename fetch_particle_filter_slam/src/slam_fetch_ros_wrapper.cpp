@@ -1,18 +1,18 @@
 #include "slam_fetch_ros_wrapper.hpp"
 
 SlamFetch::SlamFetch(ros::NodeHandle& n, uint64_t num,
-				float max_dist, int8_t hit_odds, int8_t miss_odds):
+                float max_dist, int8_t hit_odds, int8_t miss_odds):
 n_(n),
 particle_num_(num),
 max_dist_(max_dist),
 h_odds_(hit_odds),
 m_odds_(miss_odds)
 {
-	pose_odom_ = boost::make_shared<pose_xyt>();
-	pose_slam_ = boost::make_shared<pose_xyt>();
-	samples_ = boost::make_shared<particles>();
+    pose_odom_ = boost::make_shared<pose_xyt>();
+    pose_slam_ = boost::make_shared<pose_xyt>();
+    samples_ = boost::make_shared<particles>();
 
-	fetch_map_.header.seq = count_;
+    fetch_map_.header.seq = count_;
     fetch_map_.header.frame_id = "/world";
     fetch_map_.header.stamp = ros::Time::now();
     fetch_map_.info.map_load_time = ros::Time::now();
@@ -46,7 +46,7 @@ m_odds_(miss_odds)
 
     laser_sub_ = new message_filters::Subscriber<sensor_msgs::LaserScan>(n, "/base_scan", 1);
     odom_sub_ = new message_filters::Subscriber<nav_msgs::Odometry>(n, "/odom_combined", 1);
-	
+    
     sync_ = new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), *laser_sub_, *odom_sub_);
     sync_->registerCallback(boost::bind(&SlamFetch::MsgsReceiveCallBack, this, _1, _2));
 
@@ -59,61 +59,61 @@ void SlamFetch::RunStateMachine()
 {
     ROS_INFO("Start State Machine!!!");
     uint8_t trigger_num_ = 1;
-	while(ros::ok())
-	{		
-		switch(state_)
-		{
-			case INIT:
+    while(ros::ok())
+    {       
+        switch(state_)
+        {
+            case INIT:
                 ROS_INFO("STATE::INIT Wait For Odom and Laser Msgs...");
-				if (odom_laser_first_)
-				{
+                if (odom_laser_first_)
+                {
                     ROS_INFO("STATE::INIT Initilize Map and Particle Filter...");
-					state_ = SLAM;
-					o_map_ = new Mapping(max_dist_, h_odds_, m_odds_);
-					p_filter_ = new ParticleFilter(particle_num_, offset_x_);
-					p_filter_->InitializeFilterAtPose(pose_odom_->pose);
+                    state_ = SLAM;
+                    o_map_ = new Mapping(max_dist_, h_odds_, m_odds_);
+                    p_filter_ = new ParticleFilter(particle_num_, offset_x_);
+                    p_filter_->InitializeFilterAtPose(pose_odom_->pose);
                     o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, offset_x_);
                     ROS_INFO("STATE::INIT Finish Map and Particle Filter!!!");
-				}
-				break;
-			case SLAM:
+                }
+                break;
+            case SLAM:
                 ROS_INFO("STATE::SLAM Doing Slam...");
                 std::mutex mtx; 
                 
-				fetch_map_.header.seq = count_;
+                fetch_map_.header.seq = count_;
                 mtx.lock();
                 while(trigger_num_ <= 1)
                 {
                     if(fabs(u_theta_) <= 0.05)
-	          	        o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, offset_x_);
+                        o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, offset_x_);
                     trigger_num_++;
-                } 	
-				pose_slam_->pose = p_filter_->UpdateFilter(pose_odom_->pose, laser_scan_, fetch_map_);
-				mtx.unlock();
+                }   
+                pose_slam_->pose = p_filter_->UpdateFilter(pose_odom_->pose, laser_scan_, fetch_map_);
+                mtx.unlock();
 
-		        samples_ = p_filter_->GetParticles();
-		        
-		        count_++;
-		        trigger_num_ = 1;
+                samples_ = p_filter_->GetParticles();
+                
+                count_++;
+                trigger_num_ = 1;
 
-		        fetch_map_.header.stamp = ros::Time::now();
-    			fetch_map_.info.map_load_time = ros::Time::now();
+                fetch_map_.header.stamp = ros::Time::now();
+                fetch_map_.info.map_load_time = ros::Time::now();
 
                 TFBraodcaster();
 
-		        map_pub_.publish(fetch_map_); 
-		        DrawParticles(samples_marker_pub, samples_);
+                map_pub_.publish(fetch_map_); 
+                DrawParticles(samples_marker_pub, samples_);
                 DrawArrow(pose_marker_pub_, pose_slam_);
-                DrawPath(path_marker_pub_, pose_slam_, path_);		
-				break;
-		}
+                DrawPath(path_marker_pub_, pose_slam_, path_);      
+                break;
+        }
         ros::spinOnce();
-	}
+    }
 }
 
 void SlamFetch::TransReceiveCallBack(const tf2_msgs::TFMessage::ConstPtr& tf_message)
 {
-	std::string frame_name = "laser_link";
+    std::string frame_name = "laser_link";
     for(auto trans: tf_message->transforms)
     {
         if (trans.child_frame_id == frame_name)
@@ -127,7 +127,7 @@ void SlamFetch::TransReceiveCallBack(const tf2_msgs::TFMessage::ConstPtr& tf_mes
 }
 
 void SlamFetch::MsgsReceiveCallBack(const sensor_msgs::LaserScan::ConstPtr& laser_msg,\
-                            		const nav_msgs::Odometry::ConstPtr& odom_msg)
+                                    const nav_msgs::Odometry::ConstPtr& odom_msg)
 {
     laser_scan_.header = laser_msg->header;
     /*becase laser scan fram rotate 180 degrees according to the frame of map*/

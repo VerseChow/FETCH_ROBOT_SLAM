@@ -1,9 +1,9 @@
 #include "utils.h"
 
 void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
-						      const ros::Publisher marker_pub,\
-						      const geometry_msgs::Pose2D& pose_r,\
-						      const geometry_msgs::Vector3 translation_info)
+                              const ros::Publisher marker_pub,\
+                              const geometry_msgs::Pose2D& pose_r,\
+                              const geometry_msgs::Vector3 translation_info)
 {
       float robot_angle=pose_r.theta;
       float angle;
@@ -61,7 +61,7 @@ void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
 }
 
 void DrawParticles(const ros::Publisher marker_pub,\
-	                 Particles sample_particles)
+                     Particles sample_particles)
 {
     visualization_msgs::Marker Points;
     Points.header.frame_id = "/world";
