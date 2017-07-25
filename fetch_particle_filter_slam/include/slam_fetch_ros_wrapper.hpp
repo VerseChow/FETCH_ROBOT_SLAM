@@ -3,12 +3,15 @@
 #include "ros/ros.h"
 #include "iostream"
 #include "stdint.h"
+#include "mutex"
 
 #include "message_filters/subscriber.h"
 #include "message_filters/synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 #include "tf2_msgs/TFMessage.h"
 #include "tf/transform_datatypes.h"
+#include "tf/transform_broadcaster.h"
+#include "tf/transform_listener.h"
 #include "nav_msgs/Odometry.h"
 
 #include "boost/make_shared.hpp"
@@ -41,6 +44,7 @@ class SlamFetch
 		float theta_cur_;
 		float u_theta_;
 		float u_motion_;
+		double offset_x_;
 		
 		sensor_msgs::LaserScan laser_scan_;
 		geometry_msgs::Vector3 translation_info_;
@@ -54,7 +58,12 @@ class SlamFetch
 		int8_t m_odds_;
 
 		ros::Publisher map_pub_;
-		ros::Publisher marker_pub_;
+		ros::Publisher samples_marker_pub;
+		ros::Publisher pose_marker_pub_;
+		ros::Publisher path_marker_pub_;
+
+		visualization_msgs::Marker path_;
+
 		ros::Subscriber tf_sub_;
 		message_filters::Subscriber<sensor_msgs::LaserScan> *laser_sub_;
     	message_filters::Subscriber<nav_msgs::Odometry> *odom_sub_;
@@ -69,6 +78,7 @@ class SlamFetch
 		void TransReceiveCallBack(const tf2_msgs::TFMessage::ConstPtr& tf_message);
 		void MsgsReceiveCallBack(const sensor_msgs::LaserScan::ConstPtr& laser_msg,\
 	                            const nav_msgs::Odometry::ConstPtr& odom_msg);
+		void TFBraodcaster();
 };
 
 #endif

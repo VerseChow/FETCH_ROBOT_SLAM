@@ -18,7 +18,7 @@ ParticleFilter::~ParticleFilter(){}
 void ParticleFilter::InitializeFilterAtPose(const geometry_msgs::Pose2D& odometry)
 {
     /*Initializing the particles in the particle filter*/
-    actionModel_ = ActionModel(0.5*0.5, 0.001, 0.5*0.5, 0.001, 0.0001, odometry);
+    actionModel_ = ActionModel(0.5*0.5, 0.001, 0.5*0.5, 0.001, 0.001, odometry);
     sensorModel_ = SensorModel(25, 0.02, laser_frame_offset);
 
     Particle sample_particle;// = boost::make_shared<particle>();

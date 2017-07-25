@@ -13,7 +13,9 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   visualization_msgs
   geometry_msgs
+  tf
   tf2_msgs
+  message_filters
 )
 find_package(PCL 1.8 REQUIRED)
 add_definitions(${PCL_DEFINITIONS})

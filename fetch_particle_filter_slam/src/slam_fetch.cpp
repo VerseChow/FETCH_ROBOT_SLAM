@@ -5,6 +5,6 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Slam_Fetch");
     ros::NodeHandle n;
 
-    SlamFetch slam_fetch(n, 1000, 25, 10, 1);
+    SlamFetch slam_fetch(n, 1000, 25, 5, 1);
     slam_fetch.RunStateMachine();
 }

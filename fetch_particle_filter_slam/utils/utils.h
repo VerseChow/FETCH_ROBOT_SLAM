@@ -7,7 +7,7 @@
 #include "geometry_msgs/Pose2D.h"
 #include "sensor_msgs/LaserScan.h"
 #include "visualization_msgs/Marker.h"
-
+#include "tf/transform_datatypes.h"
 #include "datatypes.h"
 
 void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
@@ -17,5 +17,11 @@ void DrawLaserScan(const sensor_msgs::LaserScan laser_scan,\
 
 void DrawParticles(const ros::Publisher marker_pub,\
 	              const Particles sample_particles);
+
+void DrawArrow(const ros::Publisher marker_pub,\
+              Pose_xyt pose);
+
+void DrawPath(const ros::Publisher marker_pub,\
+              Pose_xyt pose, visualization_msgs::Marker& Points);
 
 #endif

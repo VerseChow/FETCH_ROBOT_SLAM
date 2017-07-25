@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="fetch_particle_filter_slam" type="Slam_Fetch" name="Slam_Fetch" respawn="true" output="screen"/>
+    <node pkg="rviz" type="rviz" name="rviz" respawn="true"/>
+</launch>

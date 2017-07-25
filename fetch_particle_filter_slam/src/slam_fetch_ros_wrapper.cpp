@@ -4,7 +4,7 @@ SlamFetch::SlamFetch(ros::NodeHandle& n, uint64_t num,
 				float max_dist, int8_t hit_odds, int8_t miss_odds):
 n_(n),
 particle_num_(num),
-max_dist_(max_dist_),
+max_dist_(max_dist),
 h_odds_(hit_odds),
 m_odds_(miss_odds)
 {
@@ -13,7 +13,7 @@ m_odds_(miss_odds)
 	samples_ = boost::make_shared<particles>();
 
 	fetch_map_.header.seq = count_;
-    fetch_map_.header.frame_id = "/odom";
+    fetch_map_.header.frame_id = "/world";
     fetch_map_.header.stamp = ros::Time::now();
     fetch_map_.info.map_load_time = ros::Time::now();
     /*m/cell*/
@@ -25,11 +25,24 @@ m_odds_(miss_odds)
     fetch_map_.info.origin.position.y = -250.0;
     fetch_map_.info.origin.position.z = 0.0;
     fetch_map_.info.origin.orientation.w = 1.0;
-    fetch_map_.data.assign(fetch_map_.info.width*fetch_map_.info.height, 50);
+    fetch_map_.data.assign(fetch_map_.info.width*fetch_map_.info.height, -1);
 
     map_pub_ = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
-    marker_pub_ = n.advertise<visualization_msgs::Marker>("particles", 10);
-    tf_sub_ = n.subscribe("/tf", 1, &SlamFetch::TransReceiveCallBack, this);
+    samples_marker_pub = n.advertise<visualization_msgs::Marker>("particles", 1);
+    pose_marker_pub_ = n.advertise<visualization_msgs::Marker>("slam_pose", 1);
+    path_marker_pub_ = n.advertise<visualization_msgs::Marker>("slam_path", 1);
+
+    path_.header.frame_id = "/world";
+    path_.ns = "slam_path";
+    path_.action = visualization_msgs::Marker::ADD;
+    path_.type = visualization_msgs::Marker::POINTS;
+    path_.pose.orientation.w = 1.0;
+    path_.color.a = 1.0;
+    path_.color.b = 1.0;
+    path_.id = 0;
+    path_.scale.x = 0.1;
+    path_.scale.y = 0.1;
+    path_.scale.z = 0.1;
 
     laser_sub_ = new message_filters::Subscriber<sensor_msgs::LaserScan>(n, "/base_scan", 1);
     odom_sub_ = new message_filters::Subscriber<nav_msgs::Odometry>(n, "/odom_combined", 1);
@@ -44,32 +57,40 @@ SlamFetch::~SlamFetch(){}
 
 void SlamFetch::RunStateMachine()
 {
+    ROS_INFO("Start State Machine!!!");
+    uint8_t trigger_num_ = 1;
 	while(ros::ok())
-	{
-		int trigger_num_ = 1;
+	{		
 		switch(state_)
 		{
 			case INIT:
-				if (tf_first_ && odom_laser_first_)
+                ROS_INFO("STATE::INIT Wait For Odom and Laser Msgs...");
+				if (odom_laser_first_)
 				{
+                    ROS_INFO("STATE::INIT Initilize Map and Particle Filter...");
 					state_ = SLAM;
 					o_map_ = new Mapping(max_dist_, h_odds_, m_odds_);
-					p_filter_ = new ParticleFilter(particle_num_, translation_info_.x);
+					p_filter_ = new ParticleFilter(particle_num_, offset_x_);
 					p_filter_->InitializeFilterAtPose(pose_odom_->pose);
-					pose_slam_ = pose_odom_;
-					tf_sub_.shutdown();
+                    o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, offset_x_);
+                    ROS_INFO("STATE::INIT Finish Map and Particle Filter!!!");
 				}
 				break;
 			case SLAM:
+                ROS_INFO("STATE::SLAM Doing Slam...");
+                std::mutex mtx; 
+                
 				fetch_map_.header.seq = count_;
-		        if(fabs(u_theta_) <= 0.05)
-	          		o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, translation_info_.x); 
-				
-				while(trigger_num_ <= 1)				
-				{	
-					pose_slam_->pose = p_filter_->UpdateFilter(pose_odom_->pose, laser_scan_, fetch_map_);
-					trigger_num_++;
-				}
+                mtx.lock();
+                while(trigger_num_ <= 1)
+                {
+                    if(fabs(u_theta_) <= 0.05)
+	          	        o_map_->UpdateMap(laser_scan_, pose_slam_->pose, fetch_map_, offset_x_);
+                    trigger_num_++;
+                } 	
+				pose_slam_->pose = p_filter_->UpdateFilter(pose_odom_->pose, laser_scan_, fetch_map_);
+				mtx.unlock();
+
 		        samples_ = p_filter_->GetParticles();
 		        
 		        count_++;
@@ -77,8 +98,13 @@ void SlamFetch::RunStateMachine()
 
 		        fetch_map_.header.stamp = ros::Time::now();
     			fetch_map_.info.map_load_time = ros::Time::now();
+
+                TFBraodcaster();
+
 		        map_pub_.publish(fetch_map_); 
-		        DrawParticles(marker_pub_, samples_);			
+		        DrawParticles(samples_marker_pub, samples_);
+                DrawArrow(pose_marker_pub_, pose_slam_);
+                DrawPath(path_marker_pub_, pose_slam_, path_);		
 				break;
 		}
         ros::spinOnce();
@@ -97,6 +123,7 @@ void SlamFetch::TransReceiveCallBack(const tf2_msgs::TFMessage::ConstPtr& tf_mes
         }      
     }
     tf_first_ = true;
+    tf_sub_.shutdown();
 }
 
 void SlamFetch::MsgsReceiveCallBack(const sensor_msgs::LaserScan::ConstPtr& laser_msg,\
@@ -120,9 +147,9 @@ void SlamFetch::MsgsReceiveCallBack(const sensor_msgs::LaserScan::ConstPtr& lase
     pose_odom_->pose.x = odom_msg->pose.pose.position.x;
     pose_odom_->pose.y = odom_msg->pose.pose.position.y;
 
-    tf::Quaternion q(odom_msg->pose.pose.orientation.x, \
-                     odom_msg->pose.pose.orientation.y, \
-                     odom_msg->pose.pose.orientation.z, \
+    tf::Quaternion q(odom_msg->pose.pose.orientation.x,\
+                     odom_msg->pose.pose.orientation.y,\
+                     odom_msg->pose.pose.orientation.z,\
                      odom_msg->pose.pose.orientation.w);
 
     tf::Matrix3x3 m(q);
@@ -132,6 +159,34 @@ void SlamFetch::MsgsReceiveCallBack(const sensor_msgs::LaserScan::ConstPtr& lase
     theta_cur_ = wrap_to_pi(yaw);
     u_theta_ = theta_cur_-theta_pre_;
     theta_pre_ = theta_cur_;
+    if (!odom_laser_first_)
+    {
+        tf::TransformListener listener;
+        tf::StampedTransform transform;
+        try {
+            listener.waitForTransform("base_link", "laser_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("base_link", "laser_link", ros::Time(0), transform);
+        } 
+        catch (tf::TransformException ex) {
+            ROS_ERROR("%s",ex.what());
+        }
+        offset_x_ = transform.getOrigin().x();
+        odom_laser_first_ = true;
+        pose_slam_ = pose_odom_;
+    }
+    else
+        TFBraodcaster();
 
-    odom_laser_first_ = true;
+}
+
+void SlamFetch::TFBraodcaster()
+{
+    static tf::TransformBroadcaster br;
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(pose_odom_->pose.x-pose_slam_->pose.x,\
+                                    pose_odom_->pose.y-pose_slam_->pose.y, 0.0));
+    tf::Quaternion q;
+    q.setRPY(0, 0, pose_odom_->pose.theta-pose_slam_->pose.theta);
+    transform.setRotation(q);
+    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "/world", "/odom"));
 }

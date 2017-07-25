@@ -49,28 +49,30 @@ void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg,\
 	    CheckRange(i0, j0, map);
 	    CheckRange(it, jt, map);
 	    
-	    if (laser_msg.ranges[scannum] < kMaxLaserDistance_)
+	    if (laser_msg.ranges[scannum] <= kMaxLaserDistance_)
 	    {
 		    logtemp = GetlogOdds(it, jt, map);
-			if( logtemp <= (100-kHitOdds_))
+			if (logtemp+kHitOdds_ <= 100)
 			{
 			    logtemp = logtemp+kHitOdds_;
 	    		SetlogOdds(it,jt,logtemp,map);
+			}
+			else
+			{
+				SetlogOdds(it,jt,100,map);
 			}
 			
 			Bresenham(i0, j0, it, jt, map);
 			
 			logtemp = GetlogOdds(it, jt, map);
 		    
-			if (logtemp <= (100-kHitOdds_))
+			if (logtemp+kHitOdds_ <= 100)
 			{
 			    logtemp = logtemp+kHitOdds_;
 	    		SetlogOdds(it,jt,logtemp,map);	
-			}		
-	    }
-	    else if (laser_msg.ranges[scannum] >= kMaxLaserDistance_)
-	    {
-			Bresenham(i0, j0, it, jt, map);
+			}
+			else
+				SetlogOdds(it,jt,100,map);	
 	    }
 	}
     
@@ -116,18 +118,20 @@ void Mapping::Bresenham(int x0, int y0, int xl, int yl, nav_msgs::OccupancyGrid&
 		if (steep)
 		{
 			logtemp = GetlogOdds(j,i,map);
-
+			if (logtemp == -1)
+				SetlogOdds(j, i, 0, map);
 		    if (logtemp >= kMissOdds_)
 		    {
 			    logtemp = GetlogOdds(j,i,map)-kMissOdds_;
-	    	    SetlogOdds(j,i,logtemp,map);
+	    	    SetlogOdds(j, i, logtemp, map);
 		    }
 
 		}
 		else
 		{
 			logtemp = GetlogOdds(i,j,map);
-		    
+		    if (logtemp == -1)
+				SetlogOdds(i, j, 0, map);
 		    if (logtemp >= kMissOdds_)
 		    {
 		    	logtemp = GetlogOdds(i,j,map)-kMissOdds_;

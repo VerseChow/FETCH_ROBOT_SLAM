@@ -20,7 +20,7 @@ bool ActionModel::UpdateAction(const geometry_msgs::Pose2D& odom_r)
 	pose_cur_ = odom_r;
 	u_x_ = pose_cur_.x-pose_pre_.x;
 	u_y_ = pose_cur_.y-pose_pre_.y;
-	u_theta_ = pose_cur_.theta-pose_pre_.theta;
+	u_theta_ = wrap_to_pi(pose_cur_.theta-pose_pre_.theta);
 
 	if(fabs(u_x_)<=threshold_ && fabs(u_y_)<=threshold_ && fabs(u_theta_)<=threshold_)
 		return	false;

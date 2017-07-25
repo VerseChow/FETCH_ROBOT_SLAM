@@ -36,9 +36,9 @@ class Mapping
         static void CheckRange(int& i, int& j, const nav_msgs::OccupancyGrid& map);
 
     private:       
-        const float  kMaxLaserDistance_;
-        const int8_t kHitOdds_;
-        const int8_t kMissOdds_;
+        float  kMaxLaserDistance_;
+        int8_t kHitOdds_;
+        int8_t kMissOdds_;
         /*pose of robot*/
         geometry_msgs::Pose2D pose_r_, pose_t_;
         /*grid index at the original pose and the terminal of the ray*/
