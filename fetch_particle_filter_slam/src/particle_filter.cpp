@@ -54,15 +54,12 @@ geometry_msgs::Pose2D ParticleFilter::UpdateFilter(const geometry_msgs::Pose2D& 
         posterior_pose_ = EstimatePosteriorPose(posterior_); 
         //printf("finish update Filter \n");
     }
-    //std::cout << "updating\n";
-
     return posterior_pose_;
 }
 
 
 Particles ParticleFilter::GetParticles() 
 {
-    //printf("Tring to fetch Particles\n");
     return posterior_;
 }
 
@@ -95,10 +92,7 @@ Particles ParticleFilter::ResamplePosteriorDistribution()
             }
             else if (j==posterior_->size() || u_dis>sum_dist)
                 pick_num = min_index;
-            //printf("%d\t%d, size:%d\n", i, j, posterior_->size());
-
         }
-        //printf("%f\t%f\t%d\n", sum_dist, u_dis, pick_num);
         sum_dist = 0;    
         prior->push_back(posterior_->at(pick_num));
     }
@@ -122,30 +116,23 @@ Particles ParticleFilter::ComputeNormalizedPosterior(Particles& proposal,
     /*Computing the normalized posterior distribution using the 
     particles in the proposal distribution*/
     Particles posterior = boost::make_shared<particles>();
-    //std::cout << "computing norm\n";
     float sum_weight = 0;
     for(int i=0; i<proposal->size(); i++)
     {   
-        //printf("1. %f\n", proposal->at(i).weight);
         proposal->at(i).weight = sensorModel_.Likelihood(proposal->at(i), laser, map);
-        //printf("2. %f\n", proposal->at(i).weight);
         posterior->push_back(proposal->at(i));
-        //printf("3. %f\n", posterior->at(i).weight);
         sum_weight += proposal->at(i).weight;
     }
 
     sum_weight = proposal->size()/sum_weight;
-    //printf("3. %f\n", sum_weight);
+
     for(int i=0; i<proposal->size(); i++)
     {
-        //printf("1. %f\t%f\n", proposal->at(i).weight, sum_weight);
         posterior->at(i).weight = (posterior->at(i).weight)*sum_weight;
-        //printf("2. %f\t%f\n", posterior->at(i).weight, sum_weight);
     }
 
     return posterior;
 }
-
 
 geometry_msgs::Pose2D ParticleFilter::EstimatePosteriorPose(Particles& posterior)
 {
@@ -163,7 +150,6 @@ geometry_msgs::Pose2D ParticleFilter::EstimatePosteriorPose(Particles& posterior
         pose_estimate.y += posterior->at(i).pose.y*posterior->at(i).weight;
         pose_estimate.theta += wrap_to_pi(posterior->at(i).pose.theta)*posterior->at(i).weight;///CHANGE theta to the standard range
         weightsum += posterior->at(i).weight;
-        //printf("weight:%f\n", posterior->at(i).weight);
     }
 
     pose_estimate.x = pose_estimate.x/weightsum;

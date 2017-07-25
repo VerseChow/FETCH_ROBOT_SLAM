@@ -15,12 +15,14 @@ void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg,\
 {
     int logtemp;
 	float dist, theta;
-	float x_t, y_t;//where ray terminates
+	/*where ray terminates*/
+	float x_t, y_t;
 	geometry_msgs::Point grid_r, grid_t;
-
-	for (int scannum=0; scannum<laser_msg.ranges.size(); scannum++)//determin the line 
+	/*Determine the line*/
+	for (int scannum=0; scannum<laser_msg.ranges.size(); scannum++)
 	{	
-	    pose_r_.x = pose.x+offset*cos(pose.theta);//laser scan frame translation 0.23 
+		/*laser scan frame translation 0.23*/
+	    pose_r_.x = pose.x+offset*cos(pose.theta);
 	    pose_r_.y = pose.y+offset*sin(pose.theta);
 	    pose_r_.theta = pose.theta;
 	    
@@ -36,7 +38,6 @@ void Mapping::UpdateMap(const sensor_msgs::LaserScan& laser_msg,\
 	    pose_t_.x = pose_r_.x+dist*cos(theta);
 	    pose_t_.y = pose_r_.y+dist*sin(theta);
 	    
-
 	    /*grid index at the original pose and the terminal of the ray*/
 	    grid_r = GlobalPositionToGridCell(pose_r_, map);
 	    grid_t = GlobalPositionToGridCell(pose_t_, map);
@@ -85,7 +86,7 @@ void Mapping::CheckRange(int& i, int& j, const nav_msgs::OccupancyGrid& map)
 
 	if (i > width)
 		i = width;
-	if (j>height)
+	if (j > height)
 		j = height;
 }
 

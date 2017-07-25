@@ -28,9 +28,11 @@ bool ActionModel::UpdateAction(const geometry_msgs::Pose2D& odom_r)
 		return	true;
 }
 
-Particles ActionModel::ApplyAction(Particles& particles)
+Particles ActionModel::ApplyAction(Particles& prior)
 {
-	std::default_random_engine generator;	
+	std::default_random_engine generator;
+	Particles proposal = boost::make_shared<particles>();
+
 	float d_rot1, d_rot2, d_trans;
 	float d_rot1_e, d_rot2_e, d_trans_e;
 
@@ -38,21 +40,22 @@ Particles ActionModel::ApplyAction(Particles& particles)
 	d_trans = sqrt(u_x_*u_x_+u_y_*u_y_);
 	d_rot2 = u_theta_-d_rot1;
 
-	for (int i=0; i<particles->size(); i++)
+	for (int i=0; i<prior->size(); i++)
 	{	
 		d_rot1_e = d_rot1-Sample(a1_*d_rot1+a2_*d_trans, generator);
 		d_trans_e = d_trans-Sample(a3_*d_trans+a4_*(d_rot1+d_rot2), generator);
 		d_rot2_e = d_rot2-Sample(a1_*d_rot2+a2_*d_trans, generator);
 
-		particles->at(i).pose.x +=  d_trans_e*cos(particles->at(i).pose.theta+d_rot1_e);
-		particles->at(i).pose.y +=  d_trans_e*sin(particles->at(i).pose.theta+d_rot1_e);
-		particles->at(i).pose.theta += d_rot1_e+d_rot2_e;
-		particles->at(i).pose.theta = wrap_to_pi(particles->at(i).pose.theta);
+		prior->at(i).pose.x +=  d_trans_e*cos(prior->at(i).pose.theta+d_rot1_e);
+		prior->at(i).pose.y +=  d_trans_e*sin(prior->at(i).pose.theta+d_rot1_e);
+		prior->at(i).pose.theta += d_rot1_e+d_rot2_e;
+		prior->at(i).pose.theta = wrap_to_pi(prior->at(i).pose.theta);
+		proposal->push_back(prior->at(i));
 	}
 
 	pose_pre_ = pose_cur_;
-	//printf("finish sampling\n");
-	return particles;
+	
+	return proposal;
 }
 
 float ActionModel::Sample(float sigma, std::default_random_engine& generator)

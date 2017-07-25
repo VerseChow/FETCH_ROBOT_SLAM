@@ -4,6 +4,8 @@
 #include "vector"
 #include "random"
 
+#include "boost/make_shared.hpp"
+
 #include "geometry_msgs/Pose2D.h"
 #include "angle_functions.hpp"
 
