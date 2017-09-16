@@ -6,6 +6,7 @@ This is a [ROS Indigo](http://www.ros.org/) package used for [Fetch Robot](http:
 catkin_make -j8
 ``` 
 in catkin work space after pull the source code
+
 2. Do 
 ```
 roslaunch fetch_particle_filter_slam`
