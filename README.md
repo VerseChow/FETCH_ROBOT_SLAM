@@ -9,7 +9,7 @@ in catkin work space after pull the source code
 
 2. Do 
 ```
-roslaunch fetch_particle_filter_slam`
+roslaunch fetch_particle_filter_slam fetch_slam.launch
 ```
 to launch the ros node
 ## Topic Created
